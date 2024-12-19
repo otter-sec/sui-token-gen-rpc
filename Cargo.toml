@@ -1,11 +1,11 @@
 [package]
-name = "sui-token-get-test"
+name = "sui-token-gen-rpc"
 version = "0.16.0"
 rust-version = "1.70.0"
 authors = ["Tim Kuehn <tikue@google.com>"]
 edition = "2021"
 license = "MIT"
-documentation = "https://docs.rs/sui-token-get-test"
+documentation = "https://docs.rs/sui-token-gen-rpc"
 homepage = "https://github.com/google/tarpc"
 repository = "https://github.com/google/tarpc"
 keywords = ["rpc", "network", "server", "microservices", "example"]
