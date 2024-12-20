@@ -12,7 +12,7 @@ use clap::Parser;
 use futures::{future, prelude::*};
 use regex::Regex;
 use service::{init_tracing, TokenGen, TokenGenErrors};
-use std::net::{IpAddr, Ipv6Addr, SocketAddr};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use tarpc::{
     context,
     server::{self, Channel},
@@ -153,7 +153,7 @@ async fn spawn(fut: impl Future<Output = ()> + Send + 'static) {
 async fn main() -> anyhow::Result<()> {
     let flags = Flags::parse(); // Parse command-line arguments
     init_tracing("Sui-token-get rpc")?; // Initialize tracing for logging
-    let server_addr = (IpAddr::V6(Ipv6Addr::LOCALHOST), flags.port); // Set the server address
+    let server_addr = (IpAddr::V4(Ipv4Addr::UNSPECIFIED), flags.port);
     let mut listener = tarpc::serde_transport::tcp::listen(&server_addr, Json::default).await?; // Start the listener
     tracing::info!("Listening on port {}", listener.local_addr().port());
     listener.config_mut().max_frame_length(10 * 1024 * 1024); // Set max frame size for RPC requests
@@ -190,7 +190,7 @@ mod tests {
 
     // Helper function to create a test server instance
     fn test_server() -> TokenServer {
-        let addr = SocketAddr::new(IpAddr::V6(Ipv6Addr::LOCALHOST), 50051); // Test server address
+        let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 50051); // Test server address
         TokenServer::new(addr)
     }
 

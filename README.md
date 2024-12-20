@@ -11,7 +11,7 @@ A **Rust-based RPC service** for generating and verifying Sui token smart contra
 
 #### Command to start the RPC
 ```bash
-cargo run --bin server -- --port 5000
+cargo run --bin server -- --port 5001
 ```
 
 ---
@@ -83,5 +83,5 @@ cargo test
 
 ## Command for client code run
 ```bash
-cargo run --bin client -- --server-addr "[::1]:5000" --command verify_url --url https://gitlab.com/osec/test-sui-token
+cargo run --bin client -- --server-addr "0.0.0.0:5001" --command verify_url --url https://gitlab.com/osec/test-sui-token
 ``` # sui-token-gen-rpc
