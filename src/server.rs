@@ -12,15 +12,33 @@ use clap::Parser;
 use futures::{future, prelude::*};
 use regex::Regex;
 use service::{init_tracing, TokenGen, TokenGenErrors};
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::{
+    io::ErrorKind,
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+    sync::Arc,
+};
 use tarpc::{
     context,
     server::{self, Channel},
     tokio_serde::formats::Json,
 };
+use tokio::net::TcpListener;
+use tokio::io::AsyncReadExt;
+use axum::{
+    extract::State,
+    response::{IntoResponse, Response},
+    routing::post,
+    Json as AxumJson,
+    Router,
+};
+use hyper::{server::conn::http1, service::service_fn};
+use tower::ServiceExt;
 
 // Module imports
 mod utils;
+mod server_types;
+
+use server_types::*;
 use utils::{generation, helpers::sanitize_name, verify_helper}; // Utility functions
 
 // Define command-line flags structure
@@ -148,29 +166,173 @@ async fn spawn(fut: impl Future<Output = ()> + Send + 'static) {
     tokio::spawn(fut);
 }
 
+// Shared state between handlers
+#[derive(Clone)]
+struct AppState {
+    server: TokenServer,
+}
+
+// REST API handlers
+async fn create_handler(
+    State(state): State<Arc<AppState>>,
+    AxumJson(payload): AxumJson<CreateRequest>,
+) -> Result<AxumJson<CreateResponse>, Response> {
+    let result = state
+        .server
+        .clone()
+        .create(
+            context::current(),
+            payload.decimals,
+            payload.name,
+            payload.symbol,
+            payload.description,
+            payload.is_frozen,
+            payload.environment,
+        )
+        .await;
+
+    match result {
+        Ok((token, move_toml, test_token)) => Ok(AxumJson(CreateResponse {
+            token,
+            move_toml,
+            test_token,
+        })),
+        Err(e) => Err((
+            hyper::StatusCode::BAD_REQUEST,
+            AxumJson(serde_json::json!({ "error": format!("{}", e) })),
+        )
+            .into_response()),
+    }
+}
+
+async fn verify_url_handler(
+    State(state): State<Arc<AppState>>,
+    AxumJson(payload): AxumJson<VerifyUrlRequest>,
+) -> Result<AxumJson<()>, Response> {
+    match state
+        .server
+        .clone()
+        .verify_url(context::current(), payload.url)
+        .await
+    {
+        Ok(()) => Ok(AxumJson(())),
+        Err(e) => Err((
+            hyper::StatusCode::BAD_REQUEST,
+            AxumJson(serde_json::json!({ "error": format!("{}", e) })),
+        )
+            .into_response()),
+    }
+}
+
+async fn verify_content_handler(
+    State(state): State<Arc<AppState>>,
+    AxumJson(payload): AxumJson<VerifyRequest>,
+) -> Result<AxumJson<()>, Response> {
+    match state
+        .server
+        .clone()
+        .verify_content(context::current(), payload.content)
+        .await
+    {
+        Ok(()) => Ok(AxumJson(())),
+        Err(e) => Err((
+            hyper::StatusCode::BAD_REQUEST,
+            AxumJson(serde_json::json!({ "error": format!("{}", e) })),
+        )
+            .into_response()),
+    }
+}
+
+// Build the axum router
+fn build_router(server: TokenServer) -> Router {
+    let state = Arc::new(AppState { server });
+    Router::new()
+        .route("/create", post(create_handler))
+        .route("/verify_url", post(verify_url_handler))
+        .route("/verify_content", post(verify_content_handler))
+        .with_state(state)
+}
+
+// Helper function to detect HTTP requests
+fn looks_like_http(buf: &[u8]) -> bool {
+    // Common HTTP methods
+    const HTTP_METHODS: [&[u8]; 5] = [
+        b"GET ",
+        b"POST",
+        b"PUT ",
+        b"HEAD",
+        b"DELE", // First 4 bytes of DELETE
+    ];
+
+    // Check if the buffer starts with any HTTP method
+    HTTP_METHODS.iter().any(|method| buf.starts_with(method))
+}
+
 // Main function to start the RPC server
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let flags = Flags::parse(); // Parse command-line arguments
     init_tracing("Sui-token-get rpc")?; // Initialize tracing for logging
-    let server_addr = (IpAddr::V4(Ipv4Addr::UNSPECIFIED), flags.port);
-    let mut listener = tarpc::serde_transport::tcp::listen(&server_addr, Json::default).await?; // Start the listener
-    tracing::info!("Listening on port {}", listener.local_addr().port());
-    listener.config_mut().max_frame_length(10 * 1024 * 1024); // Set max frame size for RPC requests
+    let server_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), flags.port);
+    
+    // Create TCP listener
+    let listener = TcpListener::bind(&server_addr).await?;
+    tracing::info!("Listening on port {}", listener.local_addr()?.port());
 
-    // Handle incoming requests asynchronously
-    listener
-        .filter_map(|r| future::ready(r.ok()))
-        .map(server::BaseChannel::with_defaults)
-        .map(|channel| {
-            let server = TokenServer::new(channel.transport().peer_addr().unwrap());
-            channel.execute(server.serve()).for_each(spawn) // Spawn task for each channel
-        })
-        .buffer_unordered(1000) // Process requests concurrently
-        .for_each(|_| async {})
-        .await;
+    // Accept incoming connections
+    loop {
+        let (socket, peer_addr) = listener.accept().await?;
+        
+        // Spawn a new task for each connection
+        tokio::spawn(async move {
+            let mut peek_buf = [0u8; 4];
+            
+            // Try to peek at the first 4 bytes
+            match socket.peek(&mut peek_buf).await {
+                Ok(n) if n >= 4 => {
+                    if looks_like_http(&peek_buf) {
+                        // Handle HTTP request using axum
+                        let router = build_router(TokenServer::new(peer_addr));
+                        let service = tower::ServiceBuilder::new()
+                            .service(router);
+                            
+                        if let Err(e) = http1::Builder::new()
+                            .serve_connection(socket, service_fn(move |req| {
+                                service.clone().oneshot(req)
+                            }))
+                            .await
+                        {
+                            tracing::error!("Error serving HTTP connection: {}", e);
+                        }
+                    } else {
+                        // Handle RPC request
+                        let transport = tarpc::serde_transport::tcp::Builder::new(Json::default, socket)
+                            .build();
 
-    Ok(())
+                        match transport {
+                            Ok(transport) => {
+                                let channel = server::BaseChannel::with_defaults(transport);
+                                let server = TokenServer::new(peer_addr);
+                                channel.execute(server.serve()).for_each(spawn).await;
+                            }
+                            Err(e) => {
+                                tracing::error!("Failed to create RPC transport: {}", e);
+                            }
+                        }
+                    }
+                }
+                Ok(_) => {
+                    tracing::error!("Received incomplete request header from {}", peer_addr);
+                }
+                Err(e) if e.kind() == ErrorKind::WouldBlock => {
+                    tracing::error!("Socket would block while reading from {}", peer_addr);
+                }
+                Err(e) => {
+                    tracing::error!("Error reading from socket {}: {}", peer_addr, e);
+                }
+            }
+        });
+    }
 }
 
 // Unit tests for the TokenServer
