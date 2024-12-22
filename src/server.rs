@@ -8,11 +8,21 @@
 //! - Test suite with comprehensive test cases
 //! - Helper functions for token generation and validation
 
+use axum::{
+    extract::State,
+    response::{IntoResponse, Response},
+    routing::post,
+    Json as AxumJson, Router,
+};
 use clap::Parser;
-use futures::{future, prelude::*};
+use futures::prelude::*;
+use hyper::StatusCode;
+use hyper::{server::conn::http1, service::service_fn};
+use hyper_util::rt::tokio::TokioIo;
 use regex::Regex;
 use service::{init_tracing, TokenGen, TokenGenErrors};
 use std::{
+    fmt,
     io::ErrorKind,
     net::{IpAddr, Ipv4Addr, SocketAddr},
     sync::Arc,
@@ -22,21 +32,69 @@ use tarpc::{
     server::{self, Channel},
     tokio_serde::formats::Json,
 };
+// AsyncReadExt is used through TokioIo
 use tokio::net::TcpListener;
-use tokio::io::AsyncReadExt;
-use axum::{
-    extract::State,
-    response::{IntoResponse, Response},
-    routing::post,
-    Json as AxumJson,
-    Router,
-};
-use hyper::{server::conn::http1, service::service_fn};
 use tower::ServiceExt;
 
+// Wrapper type for TokenGenErrors to implement IntoResponse
+struct ApiError(TokenGenErrors);
+
+impl From<TokenGenErrors> for ApiError {
+    fn from(err: TokenGenErrors) -> Self {
+        ApiError(err)
+    }
+}
+
+impl fmt::Display for ApiError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self.0)
+    }
+}
+
+impl IntoResponse for ApiError {
+    fn into_response(self) -> Response {
+        let (status, error_message) = match &self.0 {
+            // 400 Bad Request - Client errors
+            TokenGenErrors::InvalidDecimals
+            | TokenGenErrors::InvalidSymbol
+            | TokenGenErrors::InvalidName
+            | TokenGenErrors::InvalidDescription => (StatusCode::BAD_REQUEST, self.to_string()),
+
+            // 422 Unprocessable Entity - Content validation errors
+            TokenGenErrors::ProgramModified
+            | TokenGenErrors::ContractModified
+            | TokenGenErrors::VerifyResultError(_) => {
+                (StatusCode::UNPROCESSABLE_ENTITY, self.to_string())
+            }
+
+            // 404 Not Found - Resource not found errors
+            TokenGenErrors::ClonedRepoNotFound
+            | TokenGenErrors::InvalidPath(_)
+            | TokenGenErrors::InvalidUrl(_) => (StatusCode::NOT_FOUND, self.to_string()),
+
+            // 500 Internal Server Error - Server errors
+            TokenGenErrors::GitError(_)
+            | TokenGenErrors::FileIoError(_)
+            | TokenGenErrors::GeneralError(_) => {
+                (StatusCode::INTERNAL_SERVER_ERROR, self.to_string())
+            }
+        };
+
+        (
+            status,
+            AxumJson(serde_json::json!({
+                "error": error_message,
+                "code": status.as_u16(),
+                "status": status.to_string()
+            })),
+        )
+            .into_response()
+    }
+}
+
 // Module imports
-mod utils;
 mod server_types;
+mod utils;
 
 use server_types::*;
 use utils::{generation, helpers::sanitize_name, verify_helper}; // Utility functions
@@ -197,11 +255,7 @@ async fn create_handler(
             move_toml,
             test_token,
         })),
-        Err(e) => Err((
-            hyper::StatusCode::BAD_REQUEST,
-            AxumJson(serde_json::json!({ "error": format!("{}", e) })),
-        )
-            .into_response()),
+        Err(e) => Err(ApiError(e).into_response()),
     }
 }
 
@@ -216,11 +270,7 @@ async fn verify_url_handler(
         .await
     {
         Ok(()) => Ok(AxumJson(())),
-        Err(e) => Err((
-            hyper::StatusCode::BAD_REQUEST,
-            AxumJson(serde_json::json!({ "error": format!("{}", e) })),
-        )
-            .into_response()),
+        Err(e) => Err(ApiError(e).into_response()),
     }
 }
 
@@ -235,11 +285,7 @@ async fn verify_content_handler(
         .await
     {
         Ok(()) => Ok(AxumJson(())),
-        Err(e) => Err((
-            hyper::StatusCode::BAD_REQUEST,
-            AxumJson(serde_json::json!({ "error": format!("{}", e) })),
-        )
-            .into_response()),
+        Err(e) => Err(ApiError(e).into_response()),
     }
 }
 
@@ -257,11 +303,7 @@ fn build_router(server: TokenServer) -> Router {
 fn looks_like_http(buf: &[u8]) -> bool {
     // Common HTTP methods
     const HTTP_METHODS: [&[u8]; 5] = [
-        b"GET ",
-        b"POST",
-        b"PUT ",
-        b"HEAD",
-        b"DELE", // First 4 bytes of DELETE
+        b"GET ", b"POST", b"PUT ", b"HEAD", b"DELE", // First 4 bytes of DELETE
     ];
 
     // Check if the buffer starts with any HTTP method
@@ -274,7 +316,7 @@ async fn main() -> anyhow::Result<()> {
     let flags = Flags::parse(); // Parse command-line arguments
     init_tracing("Sui-token-get rpc")?; // Initialize tracing for logging
     let server_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), flags.port);
-    
+
     // Create TCP listener
     let listener = TcpListener::bind(&server_addr).await?;
     tracing::info!("Listening on port {}", listener.local_addr()?.port());
@@ -282,43 +324,30 @@ async fn main() -> anyhow::Result<()> {
     // Accept incoming connections
     loop {
         let (socket, peer_addr) = listener.accept().await?;
-        
+
         // Spawn a new task for each connection
         tokio::spawn(async move {
             let mut peek_buf = [0u8; 4];
-            
+
             // Try to peek at the first 4 bytes
             match socket.peek(&mut peek_buf).await {
                 Ok(n) if n >= 4 => {
                     if looks_like_http(&peek_buf) {
                         // Handle HTTP request using axum
                         let router = build_router(TokenServer::new(peer_addr));
-                        let service = tower::ServiceBuilder::new()
-                            .service(router);
-                            
-                        if let Err(e) = http1::Builder::new()
-                            .serve_connection(socket, service_fn(move |req| {
-                                service.clone().oneshot(req)
-                            }))
-                            .await
-                        {
+                        let service = tower::ServiceBuilder::new().service(router);
+
+                        let io = TokioIo::new(socket);
+                        let service = service_fn(move |req| service.clone().oneshot(req));
+                        if let Err(e) = http1::Builder::new().serve_connection(io, service).await {
                             tracing::error!("Error serving HTTP connection: {}", e);
                         }
                     } else {
                         // Handle RPC request
-                        let transport = tarpc::serde_transport::tcp::Builder::new(Json::default, socket)
-                            .build();
-
-                        match transport {
-                            Ok(transport) => {
-                                let channel = server::BaseChannel::with_defaults(transport);
-                                let server = TokenServer::new(peer_addr);
-                                channel.execute(server.serve()).for_each(spawn).await;
-                            }
-                            Err(e) => {
-                                tracing::error!("Failed to create RPC transport: {}", e);
-                            }
-                        }
+                        let server = TokenServer::new(peer_addr);
+                        let transport = tarpc::serde_transport::Transport::from((socket, Json::default()));
+                        let channel = server::BaseChannel::with_defaults(transport);
+                        channel.execute(server.serve()).for_each(spawn).await;
                     }
                 }
                 Ok(_) => {
