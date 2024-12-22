@@ -8,89 +8,28 @@
 //! - Test suite with comprehensive test cases
 //! - Helper functions for token generation and validation
 
-use axum::{
-    extract::State,
-    response::{IntoResponse, Response},
-    routing::post,
-    Json as AxumJson, Router,
-};
 use clap::Parser;
 use futures::prelude::*;
-use hyper::StatusCode;
 use hyper::{server::conn::http1, service::service_fn};
 use hyper_util::rt::tokio::TokioIo;
 use regex::Regex;
-use service::{init_tracing, TokenGen, TokenGenErrors};
+use service::{init_tracing, TokenGen};
 use std::{
-    fmt,
     io::ErrorKind,
     net::{IpAddr, Ipv4Addr, SocketAddr},
-    sync::Arc,
 };
 use tarpc::{
     context,
     server::{self, Channel},
     tokio_serde::formats::Json,
 };
-// AsyncReadExt is used through TokioIo
 use tokio::net::TcpListener;
 use tower::ServiceExt;
 
-// Wrapper type for TokenGenErrors to implement IntoResponse
-struct ApiError(TokenGenErrors);
+mod server;
+use server::rest::router::build_router;
 
-impl From<TokenGenErrors> for ApiError {
-    fn from(err: TokenGenErrors) -> Self {
-        ApiError(err)
-    }
-}
 
-impl fmt::Display for ApiError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self.0)
-    }
-}
-
-impl IntoResponse for ApiError {
-    fn into_response(self) -> Response {
-        let (status, error_message) = match &self.0 {
-            // 400 Bad Request - Client errors
-            TokenGenErrors::InvalidDecimals
-            | TokenGenErrors::InvalidSymbol
-            | TokenGenErrors::InvalidName
-            | TokenGenErrors::InvalidDescription => (StatusCode::BAD_REQUEST, self.to_string()),
-
-            // 422 Unprocessable Entity - Content validation errors
-            TokenGenErrors::ProgramModified
-            | TokenGenErrors::ContractModified
-            | TokenGenErrors::VerifyResultError(_) => {
-                (StatusCode::UNPROCESSABLE_ENTITY, self.to_string())
-            }
-
-            // 404 Not Found - Resource not found errors
-            TokenGenErrors::ClonedRepoNotFound
-            | TokenGenErrors::InvalidPath(_)
-            | TokenGenErrors::InvalidUrl(_) => (StatusCode::NOT_FOUND, self.to_string()),
-
-            // 500 Internal Server Error - Server errors
-            TokenGenErrors::GitError(_)
-            | TokenGenErrors::FileIoError(_)
-            | TokenGenErrors::GeneralError(_) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, self.to_string())
-            }
-        };
-
-        (
-            status,
-            AxumJson(serde_json::json!({
-                "error": error_message,
-                "code": status.as_u16(),
-                "status": status.to_string()
-            })),
-        )
-            .into_response()
-    }
-}
 
 // Module imports
 mod server_types;
@@ -224,81 +163,6 @@ async fn spawn(fut: impl Future<Output = ()> + Send + 'static) {
     tokio::spawn(fut);
 }
 
-// Shared state between handlers
-#[derive(Clone)]
-struct AppState {
-    server: TokenServer,
-}
-
-// REST API handlers
-async fn create_handler(
-    State(state): State<Arc<AppState>>,
-    AxumJson(payload): AxumJson<CreateRequest>,
-) -> Result<AxumJson<CreateResponse>, Response> {
-    let result = state
-        .server
-        .clone()
-        .create(
-            context::current(),
-            payload.decimals,
-            payload.name,
-            payload.symbol,
-            payload.description,
-            payload.is_frozen,
-            payload.environment,
-        )
-        .await;
-
-    match result {
-        Ok((token, move_toml, test_token)) => Ok(AxumJson(CreateResponse {
-            token,
-            move_toml,
-            test_token,
-        })),
-        Err(e) => Err(ApiError(e).into_response()),
-    }
-}
-
-async fn verify_url_handler(
-    State(state): State<Arc<AppState>>,
-    AxumJson(payload): AxumJson<VerifyUrlRequest>,
-) -> Result<AxumJson<()>, Response> {
-    match state
-        .server
-        .clone()
-        .verify_url(context::current(), payload.url)
-        .await
-    {
-        Ok(()) => Ok(AxumJson(())),
-        Err(e) => Err(ApiError(e).into_response()),
-    }
-}
-
-async fn verify_content_handler(
-    State(state): State<Arc<AppState>>,
-    AxumJson(payload): AxumJson<VerifyRequest>,
-) -> Result<AxumJson<()>, Response> {
-    match state
-        .server
-        .clone()
-        .verify_content(context::current(), payload.content)
-        .await
-    {
-        Ok(()) => Ok(AxumJson(())),
-        Err(e) => Err(ApiError(e).into_response()),
-    }
-}
-
-// Build the axum router
-fn build_router(server: TokenServer) -> Router {
-    let state = Arc::new(AppState { server });
-    Router::new()
-        .route("/create", post(create_handler))
-        .route("/verify_url", post(verify_url_handler))
-        .route("/verify_content", post(verify_content_handler))
-        .with_state(state)
-}
-
 // Helper function to detect HTTP requests
 fn looks_like_http(buf: &[u8]) -> bool {
     // Common HTTP methods
@@ -373,16 +237,124 @@ async fn main() -> anyhow::Result<()> {
 // - Sufficient permissions for file operations
 //
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use rand::{distributions::Alphanumeric, thread_rng, Rng};
-    use std::net::SocketAddr;
-    use tarpc::context;
+mod tests;
 
     // Helper function to create a test server instance
     fn test_server() -> TokenServer {
         let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 50051); // Test server address
         TokenServer::new(addr)
+    }
+
+    // Helper function to create a test router
+    fn test_router() -> Router {
+        build_router(test_server())
+    }
+
+    // Test REST API endpoints
+    #[tokio::test]
+    async fn test_rest_root_endpoint() {
+        let app = test_router();
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/")
+                    .method("GET")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        
+        let body = hyper::body::to_bytes(response.into_body()).await.unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        
+        assert_eq!(json["version"], "0.16.0");
+        assert!(json["endpoints"].as_array().unwrap().contains(&json!("/")));
+        assert!(json["endpoints"].as_array().unwrap().contains(&json!("/create")));
+        assert!(json["endpoints"].as_array().unwrap().contains(&json!("/verify_url")));
+        assert!(json["endpoints"].as_array().unwrap().contains(&json!("/verify_content")));
+        assert_eq!(json["status"], "ok");
+    }
+
+    #[tokio::test]
+    async fn test_rest_create_endpoint() {
+        let app = test_router();
+        let payload = serde_json::json!({
+            "decimals": 8,
+            "name": "Test Token",
+            "symbol": "TST",
+            "description": "Test Description",
+            "is_frozen": false,
+            "environment": "devnet"
+        });
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/create")
+                    .method("POST")
+                    .header("content-type", "application/json")
+                    .body(Body::from(serde_json::to_vec(&payload).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        
+        let body = hyper::body::to_bytes(response.into_body()).await.unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        
+        assert!(json["token"].is_string());
+        assert!(json["move_toml"].is_string());
+        assert!(json["test_token"].is_string());
+    }
+
+    #[tokio::test]
+    async fn test_rest_verify_url_endpoint() {
+        let app = test_router();
+        let payload = serde_json::json!({
+            "url": "https://github.com/valid/repo.git"
+        });
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/verify_url")
+                    .method("POST")
+                    .header("content-type", "application/json")
+                    .body(Body::from(serde_json::to_vec(&payload).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        // Since the URL doesn't exist, we expect an error response
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_rest_verify_content_endpoint() {
+        let app = test_router();
+        let payload = serde_json::json!({
+            "content": "invalid content"
+        });
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/verify_content")
+                    .method("POST")
+                    .header("content-type", "application/json")
+                    .body(Body::from(serde_json::to_vec(&payload).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     }
 
     // Test the token creation validation logic
