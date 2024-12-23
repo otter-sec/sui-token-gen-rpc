@@ -10,5 +10,6 @@
 pub mod errors;
 pub mod generation;
 pub mod helpers;
+pub mod server_types;
 pub mod variables;
 pub mod verify_helper;

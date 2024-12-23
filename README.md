@@ -38,6 +38,46 @@ On successful execution, the function returns:
 - **Configuration File** (.toml file as a string)
 - **Test Code** (as a string)
 
+#### REST API Endpoint for create:
+- **URL**: `/create`
+- **Method**: `POST`
+- **Request Body**:
+  
+  ```json
+    {
+      "decimals": 8,
+      "name": "MyToken",
+      "symbol": "MTK",
+      "description": "A custom token.",
+      "is_frozen": false,
+      "environment": "devnet"
+    }
+  ```
+- **Response**:
+  
+  ```json
+    {
+      "success": true,                  
+      "message": "Creation successful",
+      "data": {
+        "token": "contract...",               
+        "move_toml": "move toml...",       
+        "test_token": "contract test..."     
+      }
+    }
+  ```
+- **curl command**:
+  ```bash
+  curl -X POST -H "Content-Type: application/json" \
+  -d '{
+    "decimals": 1,
+    "name": "My Token",
+    "symbol": "MTK",
+    "description": "Test token",
+    "is_frozen": false,
+    "environment": "devnet"
+  }' http://0.0.0.0:5001/create
+  ```
 ---
 
 ### 2. `verify_url` Function
@@ -47,7 +87,7 @@ The `verify_url` function validates a Sui token smart contract by checking its c
 1. Validates the provided **URL** (supports GitHub/GitLab repositories).
 2. Clones the remote Git repository.
 3. Reads the token contract file (e.g., `.move` file).
-4. Checks if the contract was generated using this RPC tool.
+4. Check if the contract was generated using this RPC tool.
 
 #### Output:
 - Returns **success** if the contract is valid.
@@ -57,6 +97,31 @@ The `verify_url` function validates a Sui token smart contract by checking its c
 ```text
 verify_url("https://github.com/username/sui-token-contract")
 ```
+
+#### REST API Endpoint for verifying URL:
+- **URL**: `/verify_url`
+- **Method**: `POST`
+- **Request Body**:
+  
+  ```json
+    {
+      "url": "https://github.com/meumar-osec/test-sui-token",
+    }
+  ```
+- **Response**:
+  
+  ```json
+    {
+      "success": true,                  
+      "message": "Verified successfully",
+      "error": None
+    }
+  ```
+- **curl command**:
+  ```bash
+  curl -X POST -H "Content-Type: application/json" \
+  -d '{"url": "https://github.com/meumar-osec/test-sui-token"}' http://0.0.0.0:5001/verify_url
+  ```
 ---
 
 ### 3. `verify_content` Function
@@ -75,6 +140,35 @@ The `verify_content` function validates a Sui token smart contract by directly a
 ```text
 verify_content("module sui_token { ... }")
 ```
+
+#### REST API Endpoint for verifying content:
+- **URL**: `/verify_content`
+- **Method**: `POST`
+- **Request Body**:
+  
+  ```json
+    {
+      "content": "module Mytoken::Mytoken ...",
+    }
+  ```
+- **Response**:
+  
+  ```json
+    {
+      "success": true,                  
+      "message": "Verified successfully",
+      "error": None
+    }
+  ```
+  - **curl command**:
+  ```bash
+    curl -X POST -H "Content-Type: application/json" \
+    -d '{
+        "content": "module Mytoken::Mytoken {\n    use sui::coin::{Self, TreasuryCap};\n    public struct MYTOKEN has drop {}\n\n    /// Initialize the token with treasury and metadata\n    fun init(witness: MYTOKEN, ctx: &mut TxContext) {\n        let (treasury, metadata) = coin::create_currency(\n            witness, 8, b\"MT\", b\"My token\", b\"Tetsing\", option::none(), ctx\n        );\n        \n        transfer::public_freeze_object(metadata);\n        \n        transfer::public_transfer(treasury, ctx.sender());\n    }\n\n    public fun mint(\n\t\ttreasury_cap: &mut TreasuryCap<MYTOKEN>,\n\t\tamount: u64,\n\t\trecipient: address,\n\t\tctx: &mut TxContext,\n    ) {\n        let coin = coin::mint(treasury_cap, amount, ctx);\n        transfer::public_transfer(coin, recipient)\n    }\n}"
+    }' http://0.0.0.0:5001/verify_content
+  ```
+
+---
 
 ## Tests
 ```bash

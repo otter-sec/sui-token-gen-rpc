@@ -2,7 +2,7 @@
 name = "sui-token-gen-rpc"
 version = "0.16.0"
 rust-version = "1.70.0"
-authors = ["Tim Kuehn <tikue@google.com>"]
+authors = []
 edition = "2021"
 license = "MIT"
 documentation = "https://docs.rs/sui-token-gen-rpc"
@@ -11,13 +11,16 @@ repository = "https://github.com/google/tarpc"
 keywords = ["rpc", "network", "server", "microservices", "example"]
 categories = ["asynchronous", "network-programming"]
 readme = "README.md"
-description = "An example server built on tarpc."
+description = "A server application built using Tarpc, designed for token generation and verification with RPC and REST capabilities."
 
 [dependencies]
 anyhow = "1.0"
+axum = { version = "0.7", features = ["json"] }
 clap = { version = "4.4.18", features = ["derive"] }
 log = "0.4"
 futures = "0.3"
+hyper = { version = "1.0", features = ["full"] }
+hyper-util = { version = "0.1", features = ["tokio"] }
 opentelemetry = { version = "0.26.0" }
 opentelemetry-otlp = "0.26.0"
 rand = "0.8.5"
@@ -30,6 +33,9 @@ opentelemetry_sdk = { version = "0.26.0", features = ["rt-tokio"] }
 opentelemetry-semantic-conventions = "0.16.0"
 tera = "1.20"
 toml = "0.8.19"
+tower = { version = "0.4", features = ["full"] }
+tower-http = { version = "0.4", features = ["full"] }
+tower_governor = { version = "0.0.4" }
 chrono = "0.4.38"
 inquire = "=0.0.7"
 url = "2.5.4"
