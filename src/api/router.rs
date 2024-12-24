@@ -64,11 +64,11 @@ pub fn build_router(server: TokenServer) -> Router {
     };
 
     // Rate-limiting middleware setup, configurable by the requests per second (req_per_sec)
-    let rate_limit_per_ip = |req_per_sec: u64| {
+    let rate_limit_per_ip = |req_per_sec: u64, burst_size: u32| {
         Arc::new(
             GovernorConfigBuilder::default()
                 .per_second(req_per_sec)
-                .burst_size(5)
+                .burst_size(burst_size)
                 .finish()
                 .unwrap(),
         )
@@ -79,7 +79,7 @@ pub fn build_router(server: TokenServer) -> Router {
         .route("/", get(|| async { index() })) // Route for the root endpoint to check the service status
         .route("/create", post(create_handler)) // Route for token creation // Apply rate-limiting per IP address (1 request per second)
         .layer(GovernorLayer {
-            config: rate_limit_per_ip(1),
+            config: rate_limit_per_ip(1, 5),
         })
         .route("/verify_url", post(verify_url_handler)) // Route for verifying URLs
         .route("/verify_content", post(verify_content_handler)) // Route for verifying content
