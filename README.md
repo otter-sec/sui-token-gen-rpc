@@ -11,7 +11,7 @@ A **Rust-based RPC service** for generating and verifying Sui token smart contra
 
 #### Command to start the RPC
 ```bash
-cargo run --bin server -- --port 5001
+cargo run --bin server
 ```
 
 ---
