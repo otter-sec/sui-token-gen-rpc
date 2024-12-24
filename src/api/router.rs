@@ -20,7 +20,7 @@ use axum::{
 use std::sync::Arc;
 use std::time::Duration;
 use tower::{buffer::BufferLayer, limit::RateLimitLayer, ServiceBuilder};
-use tower_governor::{governor::GovernorConfigBuilder, GovernorLayer};
+use tower_governor::{governor::GovernorConfigBuilder, GovernorLayer, key_extractor::SmartIpKeyExtractor};
 /// Builds and configures the Axum router for REST API routes.
 ///
 /// This function sets up all the REST API routes for the Token Generation Service and configures the necessary middleware.
@@ -69,6 +69,7 @@ pub fn build_router(server: TokenServer) -> Router {
             GovernorConfigBuilder::default()
                 .per_second(req_per_sec)
                 .burst_size(burst_size)
+                .key_extractor(SmartIpKeyExtractor)
                 .finish()
                 .unwrap(),
         )
