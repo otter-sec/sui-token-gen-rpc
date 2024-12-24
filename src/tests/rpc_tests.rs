@@ -138,10 +138,7 @@ async fn test_verify_url_validation() {
     let ctx = context::current();
 
     // Test invalid URL
-    let result = server
-        .clone()
-        .verify_url(ctx, "not_a_url".into())
-        .await;
+    let result = server.clone().verify_url(ctx, "not_a_url".into()).await;
     assert!(result.is_err());
 
     // Test invalid git URL

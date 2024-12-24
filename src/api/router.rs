@@ -20,9 +20,7 @@ use axum::{
 use std::sync::Arc;
 use std::time::Duration;
 use tower::{buffer::BufferLayer, limit::RateLimitLayer, ServiceBuilder};
-use tower_governor::{
-    governor::GovernorConfigBuilder, GovernorLayer,
-};
+use tower_governor::{governor::GovernorConfigBuilder, GovernorLayer};
 /// Builds and configures the Axum router for REST API routes.
 ///
 /// This function sets up all the REST API routes for the Token Generation Service and configures the necessary middleware.
@@ -72,7 +70,7 @@ pub fn build_router(server: TokenServer) -> Router {
                 .per_second(req_per_sec)
                 .burst_size(5)
                 .finish()
-                .unwrap()
+                .unwrap(),
         )
     };
 
@@ -81,8 +79,8 @@ pub fn build_router(server: TokenServer) -> Router {
         .route("/", get(|| async { index() })) // Route for the root endpoint to check the service status
         .route("/create", post(create_handler)) // Route for token creation // Apply rate-limiting per IP address (1 request per second)
         .layer(GovernorLayer {
-           config: rate_limit_per_ip(1),
-       })
+            config: rate_limit_per_ip(1),
+        })
         .route("/verify_url", post(verify_url_handler)) // Route for verifying URLs
         .route("/verify_content", post(verify_content_handler)) // Route for verifying content
         .layer(global_rate_limit(10000)) // Apply global rate-limiting to all routes in the router (10000 requests per second)
