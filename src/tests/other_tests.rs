@@ -9,7 +9,7 @@ use crate::utils::helpers::sanitize_repo_name;
 fn test_safe_path_valid() {
     let valid_target = "sui-token";
     // Assert that the valid target path is not altered after sanitization
-    assert_eq!(sanitize_repo_name(&valid_target), valid_target);
+    assert_eq!(sanitize_repo_name(valid_target), valid_target);
 }
 
 /// Test to ensure that an invalid repository name is sanitized correctly.
@@ -20,5 +20,5 @@ fn test_safe_path_valid() {
 fn test_safe_path_invalid() {
     let invalid_target = "../etc/psswd";
     // Assert that the invalid target path is sanitized by removing path traversal components
-    assert_eq!(sanitize_repo_name(&invalid_target), "etcpsswd");
+    assert_eq!(sanitize_repo_name(invalid_target), "etcpsswd");
 }

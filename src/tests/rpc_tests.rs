@@ -29,7 +29,7 @@ async fn test_create_token_validation() {
     let result = server
         .clone()
         .create(
-            ctx.clone(),
+            ctx,
             0,
             "Test".into(),
             "TST".into(),
@@ -44,7 +44,7 @@ async fn test_create_token_validation() {
     let result = server
         .clone()
         .create(
-            ctx.clone(),
+            ctx,
             8,
             "Test".into(),
             "TSTSTST".into(),
@@ -59,7 +59,7 @@ async fn test_create_token_validation() {
     let result = server
         .clone()
         .create(
-            ctx.clone(),
+            ctx,
             8,
             "Test".into(),
             "T$T".into(),
@@ -74,7 +74,7 @@ async fn test_create_token_validation() {
     let result = server
         .clone()
         .create(
-            ctx.clone(),
+            ctx,
             8,
             "Test@".into(),
             "TST".into(),
@@ -89,7 +89,7 @@ async fn test_create_token_validation() {
     let result = server
         .clone()
         .create(
-            ctx.clone(),
+            ctx,
             8,
             "Test".into(),
             "TST".into(),
@@ -119,7 +119,7 @@ async fn test_create_token_validation() {
     let result = server
         .clone()
         .create(
-            ctx.clone(),
+            ctx,
             8,
             ".sh".into(),
             "TST".into(),
@@ -140,14 +140,14 @@ async fn test_verify_url_validation() {
     // Test invalid URL
     let result = server
         .clone()
-        .verify_url(ctx.clone(), "not_a_url".into())
+        .verify_url(ctx, "not_a_url".into())
         .await;
     assert!(result.is_err());
 
     // Test invalid git URL
     let result = server
         .clone()
-        .verify_url(ctx.clone(), "https://example.com/not-a-git-repo.git".into())
+        .verify_url(ctx, "https://example.com/not-a-git-repo.git".into())
         .await;
     assert!(result.is_err());
 
@@ -165,13 +165,13 @@ async fn test_verify_content_validation() {
     let ctx = context::current();
 
     // Test empty content
-    let result = server.clone().verify_content(ctx.clone(), "".into()).await;
+    let result = server.clone().verify_content(ctx, "".into()).await;
     assert!(result.is_err());
 
     // Test invalid content
     let result = server
         .clone()
-        .verify_content(ctx.clone(), "invalid content".into())
+        .verify_content(ctx, "invalid content".into())
         .await;
     assert!(result.is_err());
 
@@ -197,7 +197,6 @@ async fn test_concurrent_operations() {
         .map(
             |(decimals, name, symbol, description, is_frozen, environment)| {
                 let server = server.clone();
-                let ctx = ctx.clone();
                 tokio::spawn(async move {
                     server
                         .create(
@@ -219,7 +218,6 @@ async fn test_concurrent_operations() {
         .into_iter()
         .map(|content| {
             let server = server.clone();
-            let ctx = ctx.clone();
             tokio::spawn(async move { server.verify_url(ctx, content).await })
         })
         .collect();
