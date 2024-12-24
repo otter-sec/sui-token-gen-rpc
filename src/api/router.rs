@@ -20,7 +20,6 @@ use axum::{
 use std::sync::Arc;
 use std::time::Duration;
 use tower::{buffer::BufferLayer, limit::RateLimitLayer, ServiceBuilder};
-use tower_governor::{governor::GovernorConfigBuilder, GovernorLayer, key_extractor::SmartIpKeyExtractor};
 /// Builds and configures the Axum router for REST API routes.
 ///
 /// This function sets up all the REST API routes for the Token Generation Service and configures the necessary middleware.
@@ -63,25 +62,10 @@ pub fn build_router(server: TokenServer) -> Router {
             .layer(RateLimitLayer::new(req_per_sec, Duration::from_secs(1))) // Apply rate-limiting: max `req_per_sec` requests per second
     };
 
-    // Rate-limiting middleware setup, configurable by the requests per second (req_per_sec)
-    let rate_limit_per_ip = |req_per_sec: u64, burst_size: u32| {
-        Arc::new(
-            GovernorConfigBuilder::default()
-                .per_second(req_per_sec)
-                .burst_size(burst_size)
-                .key_extractor(SmartIpKeyExtractor)
-                .finish()
-                .unwrap(),
-        )
-    };
-
     // Create the Axum router, add routes, and apply global middleware layers
     Router::new()
         .route("/", get(|| async { index() })) // Route for the root endpoint to check the service status
         .route("/create", post(create_handler)) // Route for token creation // Apply rate-limiting per IP address (1 request per second)
-        .layer(GovernorLayer {
-            config: rate_limit_per_ip(1, 5),
-        })
         .route("/verify_url", post(verify_url_handler)) // Route for verifying URLs
         .route("/verify_content", post(verify_content_handler)) // Route for verifying content
         .layer(global_rate_limit(10000)) // Apply global rate-limiting to all routes in the router (10000 requests per second)
