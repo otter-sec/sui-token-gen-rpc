@@ -170,12 +170,7 @@ verify_content("module sui_token { ... }")
 
 ---
 
-## Tests
-```bash
-cargo test
-```
-
 ## Command for client code run
 ```bash
 cargo run --bin client -- --server-addr "0.0.0.0:5001" --command verify_url --url https://gitlab.com/osec/test-sui-token
-``` # sui-token-gen-rpc
+```
