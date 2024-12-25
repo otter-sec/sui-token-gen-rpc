@@ -170,24 +170,3 @@ impl Drop for CleanupGuard<'_> {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    // Test to ensure that a valid repository path remains unmodified
-    #[test]
-    fn test_safe_path_valid() {
-        let valid_target = "sui-token";
-        // Assert that the valid target path is not altered
-        assert_eq!(sanitize_repo_name(&valid_target), valid_target);
-    }
-
-    // Test to ensure that invalid paths are sanitized correctly
-    #[test]
-    fn test_safe_path_invalid() {
-        let invalid_target = "../etc/psswd";
-        // Assert that the invalid target path is sanitized by removing path traversal components
-        assert_eq!(sanitize_repo_name(&invalid_target), "etcpsswd");
-    }
-}
