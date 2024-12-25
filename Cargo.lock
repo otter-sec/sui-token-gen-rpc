@@ -2413,6 +2413,7 @@ dependencies = [
  "envy",
  "futures",
  "git2",
+ "http 0.2.12",
  "hyper",
  "hyper-util",
  "inquire",

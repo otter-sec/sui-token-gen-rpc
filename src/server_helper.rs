@@ -6,7 +6,7 @@
 use super::*;
 use crate::build_router;
 use futures::prelude::*;
-use axum::http::Method;
+use http::Method;
 use hyper::{server::conn::http1, service::service_fn};
 use hyper_util::rt::tokio::TokioIo;
 use service::TokenGen;
@@ -120,12 +120,19 @@ async fn handle_http(socket: tokio::net::TcpStream, peer_addr: SocketAddr) -> an
     // Build the HTTP router for the TokenServer with CORS
     let cors = CorsLayer::new()
         .allow_origin(Any)
-        .allow_methods([Method::GET, Method::POST].into_iter())
+        .allow_methods(vec![Method::GET, Method::POST])
         .allow_headers(Any);
 
     // Build router with CORS and convert to service
     let app = build_router(TokenServer::new(peer_addr));
-    let app_service = app.layer(cors).into_make_service();
+    let app = app.layer(cors);
+    let app_service = app.into_make_service();
+
+    // Create the service with proper type conversion
+    let service = service_fn(move |req| {
+        let svc = app_service.clone();
+        async move { svc.make_service(&()).await?.call(req).await }
+    });
 
     // Wrap the TCP stream for use with Hyper
     let io = TokioIo::new(socket);
