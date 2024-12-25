@@ -6,6 +6,7 @@
 use super::*;
 use crate::build_router;
 use futures::prelude::*;
+use axum::http::Method;
 use hyper::{server::conn::http1, service::service_fn};
 use hyper_util::rt::tokio::TokioIo;
 use service::TokenGen;
@@ -15,6 +16,8 @@ use tarpc::{
     tokio_serde::formats::Json,
 };
 use tokio::net::TcpListener;
+use tower::{MakeService, Service};
+use tower_http::cors::{Any, CorsLayer};
 
 /// Helper function to detect if a request is an HTTP request.
 ///
@@ -114,13 +117,27 @@ async fn handle_connection(
 /// # Returns
 /// * `Result<(), anyhow::Error>` indicating the success or failure of the operation.
 async fn handle_http(socket: tokio::net::TcpStream, peer_addr: SocketAddr) -> anyhow::Result<()> {
-    // Build the HTTP router for the TokenServer
-    let router = build_router(TokenServer::new(peer_addr));
-    let service = tower::ServiceBuilder::new().service(router);
+    // Build the HTTP router for the TokenServer with CORS
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods([Method::GET, Method::POST].into_iter())
+        .allow_headers(Any);
+
+    // Build router with CORS and convert to service
+    let app = build_router(TokenServer::new(peer_addr));
+    let app_service = app.layer(cors).into_make_service();
 
     // Wrap the TCP stream for use with Hyper
     let io = TokioIo::new(socket);
-    let service = service_fn(move |req| service.clone().oneshot(req));
+
+    // Create the service
+    let service = service_fn(move |req| {
+        let mut svc = app_service.clone();
+        async move {
+            let mut svc = svc.make_service(&()).await.unwrap();
+            svc.call(req).await
+        }
+    });
 
     // Serve the HTTP connection with Hyper's HTTP/1 server
     http1::Builder::new()

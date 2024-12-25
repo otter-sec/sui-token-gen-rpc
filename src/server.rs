@@ -16,7 +16,6 @@ use serde::Deserialize;
 use service::init_tracing;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use tokio::net::TcpListener;
-use tower::ServiceExt;
 
 mod server_helper;
 // Module imports for modular structure
