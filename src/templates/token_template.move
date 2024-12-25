@@ -16,7 +16,7 @@ module {{module_name}}::{{ module_name }} {
     }
 
     public fun mint(
-	    treasury_cap: &mut TreasuryCap<{{ token_type }}>,
+        treasury_cap: &mut TreasuryCap<{{ token_type }}>,
         amount: u64,
         recipient: address,
         ctx: &mut TxContext,
