@@ -33,6 +33,9 @@ pub trait TokenGen {
 
     // Method to verify the content of the token's code or configuration
     async fn verify_content(content: String) -> Result<(), TokenGenErrors>;
+
+    // Method to check the health of the service
+    async fn health_check() -> Result<(), TokenGenErrors>; // Return Ok() if healthy, or an error if not
 }
 
 // Define a custom error enum to handle various errors related to token generation.

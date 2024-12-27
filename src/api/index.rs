@@ -95,6 +95,14 @@ pub fn index() -> Json<Value> {
                         "environment": "Current environment (string)",
                         "status": "Service status (string)"
                     }
+                },
+                {
+                    "path": "/health",          // Endpoint path for the health check
+                    "method": "GET",            // HTTP method for the health endpoint
+                    "response": {               // Structure of the response returned from the health endpoint
+                        "success": "Indicates if the service is healthy (boolean)",
+                        "message": "Message describing the health check status (string)"
+                    }
                 }
             ],
             "environment": "devnet",             // Current environment (devnet, testnet, mainnet)

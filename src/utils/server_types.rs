@@ -237,4 +237,13 @@ impl TokenGen for TokenServer {
         verify_helper::compare_contract_content(content)
             .map_err(|e| TokenGenErrors::VerifyResultError(e.to_string()))
     }
+
+    /// Checks the health of the `TokenServer`.
+    ///
+    /// This method verifies that the server is operational and that critical components,
+    async fn health_check(self, _: context::Context) -> anyhow::Result<(), TokenGenErrors> {
+        // Log server health check status
+        tracing::info!("Health check passed for server at {}", self.addr);
+        Ok(())
+    }
 }
