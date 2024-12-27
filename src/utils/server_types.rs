@@ -156,7 +156,9 @@ impl TokenGen for TokenServer {
         }
 
         // Validate description: optional but must meet the same restrictions as the name.
-        if !description.is_empty() && !name_regex.is_match(&description) {
+        let description_valid_regex: Regex =
+            Regex::new(r"^[a-zA-Z0-9\s.,'\!?;:(){}\[\]\-\_@#$%&*+=|~]+$").unwrap(); // Allows only alphanumeric, spaces and some special characters.
+        if !description.is_empty() && !description_valid_regex.is_match(&description) {
             return Err(TokenGenErrors::InvalidDescription);
         }
 
