@@ -7,7 +7,9 @@
 //! global rate-limiting to prevent excessive requests and ensure service reliability.
 
 use super::{
-    handlers::{create_handler, verify_content_handler, verify_url_handler, AppState},
+    handlers::{
+        create_handler, health_handler, verify_content_handler, verify_url_handler, AppState,
+    },
     index::index,
 };
 use crate::utils::server_types::TokenServer;
@@ -32,6 +34,7 @@ use tower::{buffer::BufferLayer, limit::RateLimitLayer, ServiceBuilder};
 /// - `/create` [POST] - Creates a new token by providing details such as name, symbol, etc.
 /// - `/verify_url` [POST] - Verifies the validity of a repository URL by attempting to clone and check its content.
 /// - `/verify_content` [POST] - Verifies the provided content (such as a smart contract) for correctness.
+/// - `/health` [GET] - Returns a 200 OK status to indicate the service is healthy.
 ///
 /// Additionally, the rate-limiting middleware is applied globally across all routes to ensure a maximum request rate.
 ///
@@ -65,9 +68,10 @@ pub fn build_router(server: TokenServer) -> Router {
     // Create the Axum router, add routes, and apply global middleware layers
     Router::new()
         .route("/", get(|| async { index() })) // Route for the root endpoint to check the service status
-        .route("/create", post(create_handler)) // Route for token creation // Apply rate-limiting per IP address (1 request per second)
+        .route("/create", post(create_handler)) // Route for token creation
         .route("/verify_url", post(verify_url_handler)) // Route for verifying URLs
         .route("/verify_content", post(verify_content_handler)) // Route for verifying content
+        .route("/health", get(health_handler)) // New health check endpoint
         .layer(global_rate_limit(10000)) // Apply global rate-limiting to all routes in the router (10000 requests per second)
         .with_state(state) // Attach shared application state (TokenServer) to the router for use in all routes
 }

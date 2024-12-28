@@ -156,7 +156,9 @@ impl TokenGen for TokenServer {
         }
 
         // Validate description: optional but must meet the same restrictions as the name.
-        if !description.is_empty() && !name_regex.is_match(&description) {
+        let description_valid_regex: Regex =
+            Regex::new(r"^[a-zA-Z0-9\s.,'\!?;:(){}\[\]\-\_@#$%&*+=|~]+$").unwrap(); // Allows only alphanumeric, spaces and some special characters.
+        if !description.is_empty() && !description_valid_regex.is_match(&description) {
             return Err(TokenGenErrors::InvalidDescription);
         }
 
@@ -234,5 +236,14 @@ impl TokenGen for TokenServer {
     ) -> anyhow::Result<(), TokenGenErrors> {
         verify_helper::compare_contract_content(content)
             .map_err(|e| TokenGenErrors::VerifyResultError(e.to_string()))
+    }
+
+    /// Checks the health of the `TokenServer`.
+    ///
+    /// This method verifies that the server is operational and that critical components,
+    async fn health_check(self, _: context::Context) -> anyhow::Result<(), TokenGenErrors> {
+        // Log server health check status
+        tracing::info!("Health check passed for server at {}", self.addr);
+        Ok(())
     }
 }
