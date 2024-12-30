@@ -14,8 +14,11 @@ use service::TokenGen;
 use std::sync::Arc;
 use tarpc::context;
 
-use crate::utils::server_types::{
-    ContentVerifyRequest, CreateRequest, TokenServer, UrlVerifyRequest, VerifyUrlResponse,
+use crate::utils::{
+    server_types::{
+        ContentVerifyRequest, CreateRequest, TokenServer, UrlVerifyRequest, VerifyUrlResponse,
+    },
+    variables::VERIFICATION_MESSAGE,
 };
 
 /// Struct representing the shared application state.
@@ -112,7 +115,7 @@ pub async fn verify_url_handler(
             |_| {
                 let response = VerifyUrlResponse {
                     success: true, // Indicates success of URL verification
-                    message: "Verified successfully".to_string(),
+                    message: VERIFICATION_MESSAGE.to_string(),
                     error: None,
                 };
                 (axum::http::StatusCode::OK, AxumJson(response)).into_response()
@@ -144,7 +147,7 @@ pub async fn verify_content_handler(
             |e| {
                 let response = VerifyUrlResponse {
                     success: false, // Indicates failure of content verification
-                    message: "Verification failed".to_string(),
+                    message: VERIFICATION_MESSAGE.to_string(),
                     error: Some(e.to_string()), // Detailed error message
                 };
                 (axum::http::StatusCode::BAD_REQUEST, AxumJson(response)).into_response()
