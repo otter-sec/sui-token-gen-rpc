@@ -52,24 +52,18 @@ pub fn generate_token(
 ) -> String {
     // Sanitize the token name to be alphanumeric
     let slug = sanitize_name(&name.to_string());
-
-    let module_name = slug.clone(); // Module name based on sanitized name
-    let coin_name = slug.clone().to_lowercase(); // Coin name based on sanitized name (lowercased sanitized name)
-    let token_type = slug.to_uppercase(); // Token type (uppercased sanitized name)
-
     // Get the current working directory
     let current_dir = env::current_dir().unwrap();
     // Define the path to the template files
     let templates_path = format!("{}/src/templates/**/*", current_dir.display());
-
     // Initialize the Tera templating engine with the specified template path
     let tera = Tera::new(&templates_path).unwrap();
 
     // Create a new Tera context to insert variables into the template
     let mut context = Context::new();
-    context.insert("module_name", &module_name); // Insert the module name
-    context.insert("coin_name", &coin_name); // Insert the module name
-    context.insert("token_type", &token_type); // Insert the token type
+    context.insert("module_name", &slug); // Insert the module name
+    context.insert("coin_name", &slug.to_lowercase()); // Insert the module name
+    context.insert("token_type", &slug.to_uppercase()); // Insert the token type
     context.insert("name", &name); // Insert the token name
     context.insert("symbol", &symbol); // Insert the token symbol
     context.insert("decimals", &decimals); // Insert the token decimals
