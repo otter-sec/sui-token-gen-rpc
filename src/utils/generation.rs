@@ -1,4 +1,3 @@
-use chrono::{Datelike, Utc};
 use serde::Serialize;
 use std::{collections::HashMap, env};
 use tera::{Context, Tera};
@@ -7,6 +6,8 @@ use crate::utils::{
     helpers::sanitize_name,
     variables::{SUI_PROJECT, SUI_PROJECT_SUB_DIR},
 };
+
+use super::variables::EDITION;
 
 // Struct representing the package details in the Move.toml file
 #[derive(Serialize)]
@@ -53,6 +54,7 @@ pub fn generate_token(
     let slug = sanitize_name(&name.to_string());
 
     let module_name = slug.clone(); // Module name based on sanitized name
+    let coin_name = slug.clone().to_lowercase(); // Coin name based on sanitized name (lowercased sanitized name)
     let token_type = slug.to_uppercase(); // Token type (uppercased sanitized name)
 
     // Get the current working directory
@@ -66,6 +68,7 @@ pub fn generate_token(
     // Create a new Tera context to insert variables into the template
     let mut context = Context::new();
     context.insert("module_name", &module_name); // Insert the module name
+    context.insert("coin_name", &coin_name); // Insert the module name
     context.insert("token_type", &token_type); // Insert the token type
     context.insert("name", &name); // Insert the token name
     context.insert("symbol", &symbol); // Insert the token symbol
@@ -89,14 +92,11 @@ pub fn generate_token(
 // Function to generate the Move.toml file with basic requirements
 // It uses the provided package name and environment to generate the TOML content
 pub fn generate_move_toml(package_name: String, environment: String) -> String {
-    // Get the current year
-    let current_year: u32 = Utc::now().year_ce().1;
-
     // Create the Move.toml content using the provided package name and environment
     let move_toml = MoveToml {
         package: Package {
             name: package_name.to_lowercase(), // Package name in lowercase
-            edition: format!("{}.beta", current_year), // Package edition (current year + "beta")
+            edition: EDITION.to_string(),      // Package edition
             version: "0.0.1".to_string(),      // Package version
         },
         dependencies: Dependency {

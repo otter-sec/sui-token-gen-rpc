@@ -1,4 +1,4 @@
-module {{module_name}}::{{ module_name }} {
+module {{module_name}}::{{ coin_name }} {
     use sui::coin::{Self, TreasuryCap};
     public struct {{ token_type }} has drop {}
 
