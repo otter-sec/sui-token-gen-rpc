@@ -6,11 +6,8 @@
 //! The router is responsible for handling incoming HTTP requests and mapping them to the appropriate handlers, as well as applying
 //! global rate-limiting to prevent excessive requests and ensure service reliability.
 
-use super::{
-    handlers::{
-        create_handler, health_handler, verify_content_handler, verify_url_handler, AppState,
-    },
-    index::index,
+use super::handlers::{
+        create_handler, health_handler, verify_content_handler, verify_url_handler, AppState, index
 };
 use crate::utils::server_types::TokenServer;
 use axum::{
