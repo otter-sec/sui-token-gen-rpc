@@ -72,7 +72,7 @@ pub fn generate_token(
 
     // Select the appropriate template file based on whether it's for testing or not
     let template_file = if is_test {
-        "test_token_template.move" // Use the test token template for testing
+        "token_tests_template.move" // Use the test token template for testing
     } else {
         "token_template.move" // Use the regular token template
     };
