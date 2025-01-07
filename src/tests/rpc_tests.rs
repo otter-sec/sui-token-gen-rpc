@@ -6,7 +6,7 @@
 // - Available network connection for Git operations
 // - Sufficient permissions for file operations
 //
-use crate::utils::server_types::TokenServer;
+use crate::utils::server::types::TokenServer;
 use futures::prelude::*;
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use service::{TokenGen, TokenGenErrors};
