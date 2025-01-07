@@ -170,7 +170,7 @@ verify_content("module sui_token { ... }")
 
   ```json
   {
-    "content": "module Mytoken::Mytoken ..."
+    "content": "module Mytoken::mytoken ..."
   }
   ```
 
