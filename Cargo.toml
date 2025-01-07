@@ -57,7 +57,7 @@ path = "src/lib.rs"
 
 [[bin]]
 name = "server"
-path = "src/server.rs"
+path = "src/main.rs"
 
 [[bin]]
 name = "client"

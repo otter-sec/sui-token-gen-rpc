@@ -9,7 +9,7 @@
 use super::handlers::{
     create_handler, health_handler, index, verify_content_handler, verify_url_handler, AppState,
 };
-use crate::utils::server_types::TokenServer;
+use crate::utils::server::types::TokenServer;
 use axum::{
     error_handling::HandleErrorLayer,
     http::StatusCode,
