@@ -93,7 +93,7 @@ async fn test_create_token_validation() {
             8,
             "Test".into(),
             "TST".into(),
-            "Test@Description".into(),
+            "Test /Description/".into(),
             false,
             "devnet".into(),
         )

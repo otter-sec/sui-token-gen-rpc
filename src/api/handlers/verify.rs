@@ -14,9 +14,7 @@ use std::sync::Arc;
 use tarpc::context;
 
 use crate::utils::{
-    server_types::{
-        ContentVerifyRequest, UrlVerifyRequest, VerifyUrlResponse,
-    },
+    server_types::{ContentVerifyRequest, UrlVerifyRequest, VerifyUrlResponse},
     variables::VERIFICATION_MESSAGE,
 };
 
@@ -101,4 +99,3 @@ pub async fn verify_content_handler(
             },
         )
 }
-
