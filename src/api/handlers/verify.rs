@@ -84,7 +84,7 @@ pub async fn verify_content_handler(
             |e| {
                 let response = VerifyUrlResponse {
                     success: false, // Indicates failure of content verification
-                    message: VERIFICATION_MESSAGE.to_string(),
+                    message: "Verification failed".to_string(),
                     error: Some(e.to_string()), // Detailed error message
                 };
                 (axum::http::StatusCode::BAD_REQUEST, AxumJson(response)).into_response()
@@ -92,7 +92,7 @@ pub async fn verify_content_handler(
             |_| {
                 let response = VerifyUrlResponse {
                     success: true, // Indicates success of content verification
-                    message: "Verified successfully".to_string(),
+                    message: VERIFICATION_MESSAGE.to_string(),
                     error: None,
                 };
                 (axum::http::StatusCode::OK, AxumJson(response)).into_response()
