@@ -7,16 +7,12 @@
 //! - RPC request handling and response processing
 //! - Parameter validation and sanitization
 
+mod errors;
 use anyhow::Result;
 use clap::Parser;
+use errors::{ClientError, TokenGenErrors};
 use std::net::SocketAddr;
 use tarpc::{client, context, service, tokio_serde::formats::Json};
-use thiserror::Error;
-
-// Allow the dead_code warning for the utils module, as some code may not be used in the client.
-#[allow(dead_code)]
-mod utils;
-use utils::errors::TokenGenErrors; // Import custom error types for token generation
 
 // Define a Tarpc service trait for token generation with methods to create tokens and verify URLs and content.
 #[service]
@@ -41,19 +37,6 @@ pub trait TokenGen {
 
     // Method to check the health of the service
     async fn health_check() -> Result<(), TokenGenErrors>; // Return Ok() if healthy, or an error if not
-}
-
-// Define a custom error enum for the client, handling various error scenarios.
-#[derive(Debug, Error)]
-enum ClientError {
-    #[error("Missing required parameter: {0}")]
-    MissingParameter(String), // Error for missing required parameters
-
-    #[error("Failed to communicate with server: {0}")]
-    ServerError(#[from] tarpc::client::RpcError), // Error for RPC communication failures
-
-    #[error("Invalid inputs: {0}")]
-    InvalidInputs(String), // Error for invalid input values
 }
 
 // Implement conversion from `TokenGenErrors` to `ClientError` for easier error handling.

@@ -2,9 +2,7 @@
 // It accepts TCP connections, determines whether they are HTTP or RPC requests,
 // and delegates the handling to the appropriate handler (HTTP handled by Axum,
 // RPC handled by Tarpc). It also manages asynchronous tasks for efficient connection handling.
-
-use super::*;
-use crate::build_router;
+use crate::{build_router, TokenServer};
 use futures::prelude::*;
 use hyper::{server::conn::http1, service::service_fn};
 use hyper_util::rt::tokio::TokioIo;
@@ -15,6 +13,7 @@ use tarpc::{
     tokio_serde::formats::Json,
 };
 use tokio::net::TcpListener;
+use tower::util::ServiceExt;
 
 /// Helper function to detect if a request is an HTTP request.
 ///

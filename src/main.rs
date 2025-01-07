@@ -16,16 +16,15 @@ use serde::Deserialize;
 use service::init_tracing;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use tokio::net::TcpListener;
-use tower::ServiceExt;
 
-mod server_helper;
+
 // Module imports for modular structure
 mod api;
 #[cfg(test)]
 mod tests;
 mod utils;
 
-use utils::server_types::*;
+use utils::server::types::*;
 
 /// Configuration for the API server
 #[derive(Deserialize, Debug, Clone)]
@@ -62,7 +61,7 @@ async fn main() -> anyhow::Result<()> {
     // Event-driven handling of incoming connections and shutdown
     // Uses tokio::select to handle either incoming connections or the shutdown signal
     tokio::select! {
-        result = server_helper::accept_connections(listener) => {
+        result = utils::server::helpers::accept_connections(listener) => {
             result.map_err(|e| anyhow::anyhow!("Error while accepting connections: {}", e))?;
         },
         _ = shutdown_signal => {
