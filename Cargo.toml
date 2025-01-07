@@ -61,4 +61,4 @@ path = "src/server.rs"
 
 [[bin]]
 name = "client"
-path = "src/tests/client/mod.rs"
+path = "src/tests/client/index.rs"
