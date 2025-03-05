@@ -178,7 +178,7 @@ pub async fn verify_address(address: String, environment: String) -> Result<(), 
     let metadata = fetch_coin_metadata(&client, rpc_url, &full_coin_type).await?;
 
     // Build a local version of the token contract with the extracted details
-    let local_byte_code = build_sui(&metadata, &environment, &is_frozen.to_string(), &address)?;
+    let local_byte_code = build_sui(&metadata, &environment, is_frozen, &address)?;
     
     // Trim unnecessary characters from the deployed bytecode
     let deployed_byte_code_clean = deployed_byte_code.trim_matches('"');

@@ -1,10 +1,16 @@
 use reqwest::Client;
 use serde::Deserialize;
 use serde_json::json;
-use std::{env, error::Error, fs, path::PathBuf, process::Command};
+use std::{error::Error, fs, path::PathBuf, process::Command};
 use toml_edit::{value, DocumentMut};
 
 use crate::utils::errors::TokenGenErrors;
+
+use super::{
+    generation::{self, ContractGenerator},
+    helpers::sanitize_name,
+    variables::{SUB_FOLDER, TEST_FOLDER},
+};
 
 // Struct to store metadata about a coin
 #[derive(Debug, Deserialize)]
@@ -139,48 +145,69 @@ pub fn get_rpc_url(environment: &str) -> Result<&'static str, TokenGenErrors> {
     }
 }
 
-// Function to build a Sui token contract using the provided metadata
+/// Prepares the project folder and generates required files for the Sui token contract.
+fn prepare_sui_contract(
+    metadata: &CoinMetadata,
+    environment: &str,
+    is_frozen: bool,
+) -> Result<PathBuf, Box<dyn Error>> {
+    // Sanitize the name to create a valid folder name for storing the token.
+    let package_name: String = sanitize_name(&metadata.name);
+    let project_folder: String = package_name.to_lowercase();
+    let current_dir = std::env::current_dir().map_err(|_| TokenGenErrors::CurrentDirectoryError)?;
+    let base_folder_path = current_dir.join(&project_folder);
+
+    // Ensure the folder path is valid and convertible to a string.
+    let base_folder = base_folder_path
+        .to_str()
+        .ok_or(TokenGenErrors::PathConversionError)?;
+
+    // Generate the token content and test token content using utility functions.
+    let token_content: String = generation::generate_token(
+        metadata.decimals,
+        metadata.symbol.clone(),
+        metadata.name.clone(),
+        metadata.description.clone(),
+        is_frozen,
+        false,
+    );
+    let test_token_content: String = generation::generate_token(
+        metadata.decimals,
+        metadata.symbol.clone(),
+        metadata.name.clone(),
+        metadata.description.clone(),
+        is_frozen,
+        true,
+    );
+
+    // Generate the Move.toml configuration file for the token.
+    let move_toml_content =
+        generation::generate_move_toml(package_name.to_string(), environment.to_string());
+
+    // Create contract generator instance and populate contract files.
+    let contract_generator = ContractGenerator::new(base_folder.to_string());
+    contract_generator.create_base_folder()?;
+    contract_generator.create_move_toml(&move_toml_content)?;
+    contract_generator.create_contract_file(&metadata.name, &token_content, SUB_FOLDER)?;
+    contract_generator.create_contract_file(&metadata.name, &test_token_content, TEST_FOLDER)?;
+
+    Ok(base_folder_path)
+}
+
+/// Builds the Sui token contract and returns the compiled bytecode.
 pub fn build_sui(
     metadata: &CoinMetadata,
     environment: &str,
-    is_frozen: &str,
+    is_frozen: bool,
     address: &str,
 ) -> Result<String, Box<dyn Error>> {
+    // Step 1: Prepare the contract files and folders.
+    let token_dir = prepare_sui_contract(metadata, environment, is_frozen)?;
 
-    let tmp_path: PathBuf = env::current_dir()?;
-
-    // Run the sui-token-gen command to create the token project
-    let mut cmd = Command::new("sui-token-gen");
-    cmd.arg("create");
-    cmd.arg("--name");
-    cmd.arg(&metadata.name);
-    cmd.arg("--symbol");
-    cmd.arg(&metadata.symbol);
-    cmd.arg("--decimals");
-    cmd.arg(metadata.decimals.to_string());
-    cmd.arg("--description");
-    cmd.arg(&metadata.description);
-    cmd.arg("--is-frozen");
-    cmd.arg(is_frozen);
-    cmd.arg("--environment");
-    cmd.arg(environment);
-    cmd.current_dir(&tmp_path);
-
-
-    let output = cmd.output()?;
-
-    if !output.status.success() {
-        return Err(format!(
-            "sui-token-gen failed: {}",
-            String::from_utf8_lossy(&output.stderr)
-        )
-        .into());
-    }
-
-    // Define token directory where the SUI build will happen
-    let token_dir = tmp_path.join(&metadata.name);
+    // Step 2: Change module address in Move.toml
     change_module_address(token_dir.join("Move.toml"), address)?;
 
+    // Step 3: Execute `sui move build` command.
     let mut cmd = Command::new("sui");
     cmd.arg("move");
     cmd.arg("build");
@@ -196,16 +223,18 @@ pub fn build_sui(
         .into());
     }
 
+    // Step 4: Extract bytecode from the build output.
     let stdout_str = String::from_utf8(output.stdout)?;
     let json: serde_json::Value = serde_json::from_str(&stdout_str)?;
-
     let bytecode = json["modules"]
         .get(0)
         .and_then(|m| m.as_str())
         .ok_or("Failed to extract bytecode from modules")?
         .to_string();
 
-    fs::remove_dir_all(&token_dir)?; // Clean up generated files
+    // Step 5: Clean up generated files.
+    fs::remove_dir_all(&token_dir)?;
+
     Ok(bytecode)
 }
 
