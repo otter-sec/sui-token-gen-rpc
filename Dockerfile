@@ -1,11 +1,7 @@
 # Build Stage
-FROM --platform=linux/amd64 rust:1.79 as api_build
+FROM rustlang/rust:nightly as api_build
 
 WORKDIR /app
-
-# Install required build dependencies (optional if needed for specific crates)
-RUN apt-get update && apt-get install -y --no-install-recommends pkg-config libssl-dev build-essential && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Copy all source files and the .env file
 COPY . .
@@ -18,15 +14,14 @@ COPY src/templates ./src/templates
 RUN cargo build --release --bin server
 
 # Final Stage
-FROM --platform=linux/amd64 debian:stable-slim as api_final
+FROM debian:bookworm-slim as api_final
 
 WORKDIR /app
 
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates \
-    git \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+# Install psql runtime library, OpenSSL 3, and CA certificates
+RUN apt-get update && apt-get install -y \
+    libpq-dev ca-certificates &&\
+    rm -rf /var/lib/apt/lists/*
 
 # Copy the Rust binary from the build stage
 COPY --from=api_build /app/target/release/server .
