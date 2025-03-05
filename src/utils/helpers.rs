@@ -170,3 +170,19 @@ impl Drop for CleanupGuard<'_> {
         }
     }
 }
+
+
+pub fn extract_module_and_coin(input: &str) -> Option<(String, String, bool)> {
+    let module_re = Regex::new(r"module\s+([a-f0-9]+)\.([a-zA-Z0-9_]+)\s+\{").ok()?;
+    let coin_re = Regex::new(r"coin::create_currency<([a-zA-Z0-9_]+)>").ok()?;
+    let freeze_re = Regex::new(r"transfer::public_freeze_object").ok()?;
+    let share_re = Regex::new(r"transfer::public_share_object").ok()?;
+
+    let module_caps = module_re.captures(input)?;
+    let coin_caps = coin_re.captures(input)?;
+
+    let coin_type = coin_caps[1].to_string();
+    let is_frozen = freeze_re.is_match(input) && !share_re.is_match(input);
+
+    Some((module_caps[2].to_string(), coin_type, is_frozen))
+}

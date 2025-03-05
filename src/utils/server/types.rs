@@ -56,6 +56,13 @@ pub struct UrlVerifyRequest {
     pub url: String, // The URL to be verified
 }
 
+
+#[derive(Debug, Deserialize)]
+pub struct AddressVerifyRequest {
+    pub address: String,
+    pub environment: String
+}
+
 /// Response structure for verifying a token URL.
 ///
 /// This structure provides the result of the URL verification, including success status,
@@ -235,6 +242,17 @@ impl TokenGen for TokenServer {
         content: String,
     ) -> anyhow::Result<(), TokenGenErrors> {
         verify_helper::compare_contract_content(content)
+            .map_err(|e| TokenGenErrors::VerifyResultError(e.to_string()))
+    }
+
+
+    async fn verify_address(
+        self,
+        _: context::Context,
+        address: String,
+        environment: String
+    ) -> anyhow::Result<(), TokenGenErrors> {
+        verify_helper::verify_address(address, environment).await
             .map_err(|e| TokenGenErrors::VerifyResultError(e.to_string()))
     }
 

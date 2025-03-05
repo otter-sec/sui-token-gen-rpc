@@ -7,7 +7,7 @@
 //! global rate-limiting to prevent excessive requests and ensure service reliability.
 
 use super::handlers::{
-    create_handler, health_handler, index, verify_content_handler, verify_url_handler, AppState,
+    create_handler, health_handler, index, verify_content_handler, verify_url_handler, verify_address_handler, AppState,
 };
 use crate::utils::server::types::TokenServer;
 use axum::{
@@ -68,6 +68,7 @@ pub fn build_router(server: TokenServer) -> Router {
         .route("/create", post(create_handler)) // Route for token creation
         .route("/verify_url", post(verify_url_handler)) // Route for verifying URLs
         .route("/verify_content", post(verify_content_handler)) // Route for verifying content
+        .route("/verify_address", post(verify_address_handler)) // Route for verifying address
         .route("/health", get(health_handler)) // New health check endpoint
         .layer(global_rate_limit(10000)) // Apply global rate-limiting to all routes in the router (10000 requests per second)
         .with_state(state) // Attach shared application state (TokenServer) to the router for use in all routes

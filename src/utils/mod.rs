@@ -13,3 +13,4 @@ pub mod helpers;
 pub mod server;
 pub mod variables;
 pub mod verify_helper;
+pub mod sui_helper;

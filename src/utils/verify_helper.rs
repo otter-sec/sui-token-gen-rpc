@@ -1,6 +1,8 @@
 use anyhow::Result;
 use git2::Repository;
-use std::{env, fs, io, path::Path};
+use reqwest::Client;
+use std::env;
+use std::{fs, io, path::Path};
 use url::Url;
 
 use crate::utils::{
@@ -12,6 +14,9 @@ use crate::utils::{
     },
     variables::{TokenDetails, SUB_FOLDER},
 };
+
+use super::sui_helper::{build_sui, fetch_coin_metadata, fetch_sui_object, get_rpc_url};
+use super::{helpers::extract_module_and_coin, sui_helper::SuiObjectData};
 
 // This function verifies a token using the repository URL provided by the user.
 // It performs the following steps:
@@ -143,4 +148,43 @@ fn validate_url(url: &str) -> Result<String, TokenGenErrors> {
 
     // Sanitize the repository name to ensure it is safe for local use
     Ok(sanitize_repo_name_with_random(name))
+}
+
+// Function to verify a deployed token contract by comparing it with a locally generated version
+pub async fn verify_address(address: String, environment: String) -> Result<(), TokenGenErrors> {
+
+    // Fetch the RPC URL for the given environment
+    let rpc_url = get_rpc_url(&environment)?;
+    let client = Client::new();
+
+    // Fetch on-chain object data from Sui blockchain
+    let object_data: SuiObjectData = fetch_sui_object(&client, rpc_url, &address).await?;
+
+    // Extract module name, coin type, and freeze status from the contract source
+    let (module_name, coin_type, is_frozen) = extract_module_and_coin(&object_data.disassembled)
+        .ok_or(TokenGenErrors::ExtractionError)?;
+
+    // Retrieve the deployed bytecode from the module map
+    let deployed_byte_code = object_data
+        .module_map
+        .get(&module_name)
+        .ok_or(TokenGenErrors::ExtractionError)?
+        .to_string();
+
+    // Construct the full coin type path in the format `address::module_name::coin_type`
+    let full_coin_type = format!("{}::{}::{}", address, module_name, coin_type);
+
+    // Fetch the metadata of the coin from the blockchain
+    let metadata = fetch_coin_metadata(&client, rpc_url, &full_coin_type).await?;
+
+    // Build a local version of the token contract with the extracted details
+    let local_byte_code = build_sui(&metadata, &environment, &is_frozen.to_string(), &address)?;
+    
+    // Trim unnecessary characters from the deployed bytecode
+    let deployed_byte_code_clean = deployed_byte_code.trim_matches('"');
+
+    // Compare the deployed token contract with the locally built token contract
+    (deployed_byte_code_clean == local_byte_code)
+        .then_some(())
+        .ok_or(TokenGenErrors::ContractModified)
 }

@@ -36,6 +36,8 @@ pub trait TokenGen {
 
     // Method to check the health of the service
     async fn health_check() -> Result<(), TokenGenErrors>; // Return Ok() if healthy, or an error if not
+
+    async fn verify_address(address: String, environment: String) -> Result<(), TokenGenErrors>;
 }
 
 // Define a custom error enum to handle various errors related to token generation.

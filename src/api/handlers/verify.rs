@@ -14,7 +14,7 @@ use std::sync::Arc;
 use tarpc::context;
 
 use crate::utils::{
-    server::types::{ContentVerifyRequest, UrlVerifyRequest, VerifyUrlResponse},
+    server::types::{AddressVerifyRequest, ContentVerifyRequest, UrlVerifyRequest, VerifyUrlResponse},
     variables::VERIFICATION_MESSAGE,
 };
 
@@ -79,6 +79,37 @@ pub async fn verify_content_handler(
         .server
         .clone()
         .verify_content(context::current(), payload.content)
+        .await
+        .map_or_else(
+            |e| {
+                let response = VerifyUrlResponse {
+                    success: false, // Indicates failure of content verification
+                    message: "Verification failed".to_string(),
+                    error: Some(e.to_string()), // Detailed error message
+                };
+                (axum::http::StatusCode::BAD_REQUEST, AxumJson(response)).into_response()
+            },
+            |_| {
+                let response = VerifyUrlResponse {
+                    success: true, // Indicates success of content verification
+                    message: VERIFICATION_MESSAGE.to_string(),
+                    error: None,
+                };
+                (axum::http::StatusCode::OK, AxumJson(response)).into_response()
+            },
+        )
+}
+
+
+
+pub async fn verify_address_handler(
+    State(state): State<Arc<AppState>>,
+    AxumJson(payload): AxumJson<AddressVerifyRequest>,
+) -> Response {
+    state
+        .server
+        .clone()
+        .verify_address(context::current(), payload.address, payload.environment)
         .await
         .map_or_else(
             |e| {

@@ -79,4 +79,24 @@ pub enum TokenGenErrors {
     // Error indicating that the given path is invalid, with the invalid path passed as an argument
     #[error("Invalid path: {0}")]
     InvalidPath(String),
+
+    #[error("Invalid address")]
+    InvalidAddress,
+    #[error("Failed to fetch object: {0}")]
+    FetchObjectError(String),
+    #[error("Failed to decode object")]
+    DecodeObjectError,
+    #[error("RPC error: {0}")]
+    RpcError(String),
+    #[error("Invalid metadata")]
+    InvalidMetadata,
+    #[error("Failed to extract module name and coin type")]
+    ExtractionError,
 }
+
+impl From<Box<dyn std::error::Error>> for TokenGenErrors {
+    fn from(err: Box<dyn std::error::Error>) -> Self {
+        TokenGenErrors::FileIoError(err.to_string())
+    }
+}
+
