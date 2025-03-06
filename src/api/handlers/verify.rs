@@ -14,8 +14,10 @@ use std::sync::Arc;
 use tarpc::context;
 
 use crate::utils::{
-    server::types::{AddressVerifyRequest, ContentVerifyRequest, UrlVerifyRequest, VerifyUrlResponse},
-    variables::VERIFICATION_MESSAGE,
+    server::types::{
+        AddressVerifyRequest, ContentVerifyRequest, UrlVerifyRequest, VerifyUrlResponse,
+    },
+    variables::{VERIFICATION_MESSAGE, VERIFICATION_MESSAGE_NOTE},
 };
 
 use super::AppState;
@@ -52,7 +54,7 @@ pub async fn verify_url_handler(
             |_| {
                 let response = VerifyUrlResponse {
                     success: true, // Indicates success of URL verification
-                    message: VERIFICATION_MESSAGE.to_string(),
+                    message: format!("{} {}", VERIFICATION_MESSAGE, VERIFICATION_MESSAGE_NOTE),
                     error: None,
                 };
                 (axum::http::StatusCode::OK, AxumJson(response)).into_response()
@@ -92,15 +94,13 @@ pub async fn verify_content_handler(
             |_| {
                 let response = VerifyUrlResponse {
                     success: true, // Indicates success of content verification
-                    message: VERIFICATION_MESSAGE.to_string(),
+                    message: format!("{} {}", VERIFICATION_MESSAGE, VERIFICATION_MESSAGE_NOTE),
                     error: None,
                 };
                 (axum::http::StatusCode::OK, AxumJson(response)).into_response()
             },
         )
 }
-
-
 
 pub async fn verify_address_handler(
     State(state): State<Arc<AppState>>,
