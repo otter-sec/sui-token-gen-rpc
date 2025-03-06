@@ -133,7 +133,7 @@ impl TokenGen for TokenServer {
         self,
         _: context::Context,
         decimals: u8,
-        name: String,
+        raw_name: String,
         symbol: String,
         description: String,
         is_frozen: bool,
@@ -142,6 +142,8 @@ impl TokenGen for TokenServer {
         // Log the server address when handling a request.
         self.log_address().await;
 
+        let name = raw_name.to_lowercase();
+        
         // Validate decimals: must be between 1 and 99.
         if decimals == 0 || decimals >= 100 {
             return Err(TokenGenErrors::InvalidDecimals);
