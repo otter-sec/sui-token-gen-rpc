@@ -171,7 +171,6 @@ impl Drop for CleanupGuard<'_> {
     }
 }
 
-
 pub fn extract_module_and_coin(input: &str) -> Option<(String, String, bool)> {
     let module_re = Regex::new(r"module\s+([a-f0-9]+)\.([a-zA-Z0-9_]+)\s+\{").ok()?;
     let coin_re = Regex::new(r"coin::create_currency<([a-zA-Z0-9_]+)>").ok()?;

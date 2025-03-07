@@ -56,11 +56,10 @@ pub struct UrlVerifyRequest {
     pub url: String, // The URL to be verified
 }
 
-
 #[derive(Debug, Deserialize)]
 pub struct AddressVerifyRequest {
     pub address: String,
-    pub environment: String
+    pub environment: String,
 }
 
 /// Response structure for verifying a token URL.
@@ -128,7 +127,7 @@ impl TokenGen for TokenServer {
     ///
     /// # Returns
     /// * `Result<(String, String, String), TokenGenErrors>` - A result containing the generated token content,
-    ///    Move.toml configuration file, and test token content, or an error if validation fails.
+    ///   Move.toml configuration file, and test token content, or an error if validation fails.
     async fn create(
         self,
         _: context::Context,
@@ -143,7 +142,7 @@ impl TokenGen for TokenServer {
         self.log_address().await;
 
         let name = raw_name.to_lowercase();
-        
+
         // Validate decimals: must be between 1 and 99.
         if decimals == 0 || decimals >= 100 {
             return Err(TokenGenErrors::InvalidDecimals);
@@ -247,14 +246,14 @@ impl TokenGen for TokenServer {
             .map_err(|e| TokenGenErrors::VerifyResultError(e.to_string()))
     }
 
-
     async fn verify_address(
         self,
         _: context::Context,
         address: String,
-        environment: String
+        environment: String,
     ) -> anyhow::Result<(), TokenGenErrors> {
-        verify_helper::verify_address(address, environment).await
+        verify_helper::verify_address(address, environment)
+            .await
             .map_err(|e| TokenGenErrors::VerifyResultError(e.to_string()))
     }
 

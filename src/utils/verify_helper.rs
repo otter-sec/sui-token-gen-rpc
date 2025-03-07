@@ -152,7 +152,6 @@ fn validate_url(url: &str) -> Result<String, TokenGenErrors> {
 
 // Function to verify a deployed token contract by comparing it with a locally generated version
 pub async fn verify_address(address: String, environment: String) -> Result<(), TokenGenErrors> {
-
     // Fetch the RPC URL for the given environment
     let rpc_url = get_rpc_url(&environment)?;
     let client = Client::new();
@@ -179,7 +178,7 @@ pub async fn verify_address(address: String, environment: String) -> Result<(), 
 
     // Build a local version of the token contract with the extracted details
     let local_byte_code = build_sui(&metadata, &environment, is_frozen, &address)?;
-    
+
     // Trim unnecessary characters from the deployed bytecode
     let deployed_byte_code_clean = deployed_byte_code.trim_matches('"');
 

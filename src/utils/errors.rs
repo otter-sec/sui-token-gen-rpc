@@ -113,4 +113,3 @@ impl From<Box<dyn std::error::Error>> for TokenGenErrors {
         TokenGenErrors::FileIoError(err.to_string())
     }
 }
-

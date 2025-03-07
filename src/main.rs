@@ -17,7 +17,6 @@ use service::init_tracing;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use tokio::net::TcpListener;
 
-
 // Module imports for modular structure
 mod api;
 #[cfg(test)]

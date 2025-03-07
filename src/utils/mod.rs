@@ -11,6 +11,6 @@ pub mod errors;
 pub mod generation;
 pub mod helpers;
 pub mod server;
+pub mod sui_helper;
 pub mod variables;
 pub mod verify_helper;
-pub mod sui_helper;

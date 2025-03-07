@@ -22,7 +22,6 @@ pub const EDITION: &str = "2024.beta";
 // This folder is likely used for unit or integration tests.
 pub const TEST_FOLDER: &str = "tests";
 
-
 // Struct representing the details of a token, typically used in smart contract contexts
 // This struct holds various properties that define the characteristics of a token
 pub struct TokenDetails {

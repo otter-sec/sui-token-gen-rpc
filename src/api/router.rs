@@ -7,7 +7,8 @@
 //! global rate-limiting to prevent excessive requests and ensure service reliability.
 
 use super::handlers::{
-    create_handler, health_handler, index, verify_content_handler, verify_url_handler, verify_address_handler, AppState,
+    create_handler, health_handler, index, verify_address_handler, verify_content_handler,
+    verify_url_handler, AppState,
 };
 use crate::utils::server::types::TokenServer;
 use axum::{
