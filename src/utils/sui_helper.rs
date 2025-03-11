@@ -208,7 +208,7 @@ pub fn build_sui(
     change_module_address(token_dir.join("Move.toml"), address)?;
 
     // Step 3: Execute `sui move build` command.
-    let mut cmd = Command::new("sui");
+    let mut cmd = Command::new("/root/.cargo/bin/sui");
     cmd.arg("move");
     cmd.arg("build");
     cmd.arg("--dump-bytecode-as-base64");
