@@ -10,7 +10,9 @@ use service::{TokenGen, TokenGenErrors};
 use std::net::SocketAddr;
 use tarpc::context;
 
-use crate::utils::{generation, helpers::sanitize_name, verify_helper}; // Utility functions
+use crate::utils::{
+    generation, helpers::sanitize_name, variables::DEFAULT_ENVIRONMENT, verify_helper,
+}; // Utility functions
 
 /// Request structure for creating a token.
 ///
@@ -175,7 +177,7 @@ impl TokenGen for TokenServer {
         let environment = if valid_environments.contains(&environment.as_str()) {
             environment
         } else {
-            "devnet".to_string() // Default to "devnet" if invalid.
+            DEFAULT_ENVIRONMENT.to_string() // Default env if invalid.
         };
 
         // Sanitize the name to create a valid folder name for storing the token.

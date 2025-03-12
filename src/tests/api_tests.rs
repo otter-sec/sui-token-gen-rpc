@@ -3,6 +3,7 @@ use serde_json::json;
 use tower::ServiceExt;
 
 use crate::api::router::build_router;
+use crate::utils::variables::DEFAULT_ENVIRONMENT;
 use crate::TokenServer;
 
 fn test_server() -> TokenServer {
@@ -23,7 +24,7 @@ async fn test_create_token_api() {
         "symbol": "TST",
         "description": "Description",
         "is_frozen": false,
-        "environment": "devnet"
+        "environment": DEFAULT_ENVIRONMENT
     });
     let response = router
         .clone()
@@ -45,7 +46,7 @@ async fn test_create_token_api() {
         "symbol": "TST",
         "description": "Test Description",
         "is_frozen": false,
-        "environment": "devnet"
+        "environment": DEFAULT_ENVIRONMENT
     });
     let response = router
         .clone()
@@ -221,7 +222,7 @@ fn generate_create_requests(limit: u32) -> Vec<serde_json::Value> {
                 "symbol": "TST",
                 "description": "Test Description",
                 "is_frozen": false,
-                "environment": "devnet"
+                "environment": DEFAULT_ENVIRONMENT
             })
         })
         .collect()

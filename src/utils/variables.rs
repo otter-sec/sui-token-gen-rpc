@@ -45,3 +45,6 @@ pub struct TokenDetails {
     // This could be used to implement additional security measures or functionality within a smart contract
     pub is_frozen: bool,
 }
+
+// Constant for default environment
+pub const DEFAULT_ENVIRONMENT: &str = "devnet";
