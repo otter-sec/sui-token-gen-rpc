@@ -40,7 +40,7 @@ pub async fn verify_url_handler(
     state
         .server
         .clone()
-        .verify_url(context::current(), payload.url)
+        .verify_url(context::current(), payload.url.clone())
         .await
         .map_or_else(
             |e| {
@@ -51,10 +51,13 @@ pub async fn verify_url_handler(
                 };
                 (axum::http::StatusCode::BAD_REQUEST, AxumJson(response)).into_response()
             },
-            |_| {
+            |file_name| {
                 let response = VerifyUrlResponse {
                     success: true, // Indicates success of URL verification
-                    message: format!("{} {}", VERIFICATION_MESSAGE, VERIFICATION_MESSAGE_NOTE),
+                    message: format!(
+                        "Verified: {} coin on {} was generated using the SUI Token Gen CLI. {}",
+                        payload.url, file_name, VERIFICATION_MESSAGE_NOTE
+                    ),
                     error: None,
                 };
                 (axum::http::StatusCode::OK, AxumJson(response)).into_response()
@@ -80,7 +83,7 @@ pub async fn verify_content_handler(
     state
         .server
         .clone()
-        .verify_content(context::current(), payload.content)
+        .verify_content(context::current(), payload.content, payload.toml)
         .await
         .map_or_else(
             |e| {

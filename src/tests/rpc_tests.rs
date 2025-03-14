@@ -162,19 +162,26 @@ async fn test_verify_content_validation() {
     let ctx = context::current();
 
     // Test empty content
-    let result = server.clone().verify_content(ctx, "".into()).await;
+    let result = server
+        .clone()
+        .verify_content(ctx, "".into(), "".into())
+        .await;
     assert!(result.is_err());
 
     // Test invalid content
     let result = server
         .clone()
-        .verify_content(ctx, "invalid content".into())
+        .verify_content(ctx, "invalid content".into(), "invalid toml".into())
         .await;
     assert!(result.is_err());
 
     // Test malformed Move code
     let result = server
-        .verify_content(ctx, "module test { public fun main() { } }".into())
+        .verify_content(
+            ctx,
+            "module test { public fun main() { } }".into(),
+            "[package]".into(),
+        )
         .await;
     assert!(result.is_err());
 }

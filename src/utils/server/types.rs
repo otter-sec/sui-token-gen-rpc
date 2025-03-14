@@ -47,6 +47,7 @@ pub struct CreateResponse {
 #[derive(Debug, Deserialize)]
 pub struct ContentVerifyRequest {
     pub content: String, // The content of the token to be verified
+    pub toml: String,    // The toml content of the token to be verified
 }
 
 /// Request structure for verifying token URL.
@@ -222,7 +223,7 @@ impl TokenGen for TokenServer {
         self,
         _: context::Context,
         url: String,
-    ) -> anyhow::Result<(), TokenGenErrors> {
+    ) -> anyhow::Result<String, TokenGenErrors> {
         verify_helper::verify_token_using_url(&url)
             .await
             .map_err(|e| TokenGenErrors::VerifyResultError(e.to_string()))
@@ -243,8 +244,9 @@ impl TokenGen for TokenServer {
         self,
         _: context::Context,
         content: String,
+        toml: String,
     ) -> anyhow::Result<(), TokenGenErrors> {
-        verify_helper::compare_contract_content(content)
+        verify_helper::compare_contract_content(content, toml)
             .map_err(|e| TokenGenErrors::VerifyResultError(e.to_string()))
     }
 

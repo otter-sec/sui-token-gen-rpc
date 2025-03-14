@@ -42,25 +42,81 @@ pub fn sanitize_repo_name_with_random(repo_name: &str) -> String {
 
 // Function to filter out comments, empty lines, and unnecessary whitespace from the content
 pub fn filter_token_content(content: &str) -> String {
-    content
-        .lines() // Split content into lines
-        .filter_map(|line| {
-            let trimmed = line.trim(); // Trim whitespace from each line
+    let mut result = String::new();
+    let mut in_block_comment = false;
+    let mut in_line_comment = false;
+    let mut chars = content.chars().peekable();
 
-            // Skip empty lines or lines starting/ending with comments
-            if trimmed.is_empty()
-                || trimmed.starts_with("///")
-                || trimmed.starts_with("//")
-                || trimmed.ends_with("///")
-                || trimmed.ends_with("//")
-            {
-                None
+    while let Some(c) = chars.next() {
+        if in_block_comment {
+            if c == '*' && chars.peek() == Some(&'/') {
+                in_block_comment = false;
+                chars.next(); // Skip '/'
+            }
+            continue;
+        }
+
+        if in_line_comment {
+            if c == '\n' {
+                in_line_comment = false;
+                result.push('\n'); // Preserve new line
+            }
+            continue;
+        }
+
+        if c == '/' {
+            if let Some(&next) = chars.peek() {
+                if next == '/' {
+                    in_line_comment = true;
+                    chars.next(); // Skip second '/'
+                    continue;
+                } else if next == '*' {
+                    in_block_comment = true;
+                    chars.next(); // Skip '*'
+                    continue;
+                }
+            }
+        }
+
+        result.push(c);
+    }
+
+    // Remove empty lines and unnecessary whitespace
+    result
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .collect::<Vec<&str>>()
+        .join("\n")
+}
+
+// Function to filter out comments, empty lines, and unnecessary whitespace from the content from toml
+pub fn filter_toml_content(content: &str) -> String {
+    content
+        .to_lowercase()
+        .lines()
+        .map(str::trim) // Trim whitespace from each line
+        .filter(|line| !line.is_empty() && !line.starts_with('#')) // Remove empty lines and comments
+        .collect::<Vec<&str>>() // Collect filtered lines
+        .join("\n") // Reconstruct string with newlines
+}
+
+pub fn get_environment_from_toml(content: &str) -> Option<String> {
+    content
+        .lines()
+        .map(str::trim) // Trim whitespace from each line
+        .find_map(|line| {
+            if line.starts_with("rev =") {
+                line.split('=')
+                    .nth(1) // Get the value after '='
+                    .map(str::trim) // Remove spaces
+                    .map(|s| s.trim_matches('"')) // Remove surrounding quotes
+                    .and_then(|s| s.split('/').next_back()) // Get last part after '/'
+                    .map(String::from) // Convert to String
             } else {
-                Some(trimmed) // Keep non-empty, non-comment lines
+                None
             }
         })
-        .collect::<Vec<&str>>() // Collect filtered lines into a vector
-        .join("") // Join the lines into a single string
 }
 
 // Function to extract token details (decimals, symbol, name, description, is_frozen) from a contract content

@@ -29,10 +29,10 @@ pub trait TokenGen {
     ) -> Result<(String, String, String), TokenGenErrors>; // Return a tuple of generated token information or an error
 
     // Method to verify the URL provided for the token (e.g., GitHub URL)
-    async fn verify_url(url: String) -> Result<(), TokenGenErrors>;
+    async fn verify_url(url: String) -> Result<String, TokenGenErrors>;
 
     // Method to verify the content of the token's code or configuration
-    async fn verify_content(content: String) -> Result<(), TokenGenErrors>;
+    async fn verify_content(content: String, toml: String) -> Result<(), TokenGenErrors>;
 
     // Method to check the health of the service
     async fn health_check() -> Result<(), TokenGenErrors>; // Return Ok() if healthy, or an error if not
