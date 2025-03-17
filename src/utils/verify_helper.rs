@@ -10,9 +10,8 @@ use crate::utils::{
     errors::TokenGenErrors,
     generation::{generate_move_toml, generate_token},
     helpers::{
-        check_cloned_contract, filter_token_content, filter_toml_content,
-        get_environment_from_toml, get_token_info, is_valid_repository_url,
-        sanitize_repo_name_with_random, CleanupGuard,
+        check_cloned_contract, filter_whitespace_and_empty_lines, get_environment_from_toml,
+        get_token_info, is_valid_repository_url, sanitize_repo_name_with_random, CleanupGuard,
     },
     variables::{TokenDetails, SUB_FOLDER},
 };
@@ -122,11 +121,11 @@ pub fn compare_contract_content(
     current_content: String,
     toml_content: String,
 ) -> Result<(), TokenGenErrors> {
-    // Filter the content of the user's contract to remove any unnecessary or extraneous data
-    let cleaned_current_content: String = filter_token_content(&current_content);
+    // Filter the content of the user's contract to remove only whitespace and empty lines
+    let cleaned_current_content: String = filter_whitespace_and_empty_lines(&current_content)?;
 
     // Filter the content of toml
-    let cleaned_toml_content: String = filter_toml_content(&toml_content);
+    let cleaned_toml_content: String = filter_whitespace_and_empty_lines(&toml_content)?;
 
     // Extract token details (decimals, symbol, name, etc.) from the filtered content
     let details: TokenDetails = get_token_info(&cleaned_current_content);
@@ -148,11 +147,12 @@ pub fn compare_contract_content(
     let expected_toml_content =
         generate_move_toml(sanitize_name(&details.name), environment.to_string());
 
-    // Filter the generated token content to remove any unnecessary data
-    let cleaned_expected_content: String = filter_token_content(&expected_content);
+    // Filter the generated token content to remove only whitespace and empty lines
+    let cleaned_expected_content: String = filter_whitespace_and_empty_lines(&expected_content)?;
 
-    // Filter the generated toml content to remove any unnecessary data
-    let cleaned_expected_toml_content: String = filter_toml_content(&expected_toml_content);
+    // Filter the generated toml content to remove only whitespace and empty lines
+    let cleaned_expected_toml_content: String =
+        filter_whitespace_and_empty_lines(&expected_toml_content)?;
 
     // Compare the cleaned-up current contract content with the newly generated contract content
     if cleaned_current_content != cleaned_expected_content

@@ -2,7 +2,6 @@ module {{module_name}}::{{ coin_name }} {
     use sui::coin::{Self, TreasuryCap};
     public struct {{ token_type }} has drop {}
 
-    /// Initialize the token with treasury and metadata
     fun init(witness: {{ token_type }}, ctx: &mut TxContext) {
         let (treasury, metadata) = coin::create_currency(
             witness, {{ decimals }}, b"{{ symbol }}", b"{{ name }}", b"{{ description }}", option::none(), ctx
