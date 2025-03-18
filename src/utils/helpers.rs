@@ -85,62 +85,67 @@ pub fn get_token_info(content: &str) -> TokenDetails {
     let mut description = String::new();
     let mut is_frozen = false;
 
-    let mut tokens = content.split_whitespace().peekable(); // Split content into tokens for parsing
+    // Counter to track occurrences of "witness"
+    let mut witness_count = 0;
 
-    while let Some(token) = tokens.next() {
-        if token.contains("witness") {
-            // Parse the arguments for witness-related information
-            let mut args = Vec::new();
-            let mut char = String::new();
-            for arg in tokens.by_ref() {
-                if arg.ends_with(");") || arg.ends_with(")") || arg.ends_with("option::none(),") {
-                    // Capture arguments ending with specific characters and break
-                    let trimmed = char.trim_end_matches(&[')', ';'][..]).to_string();
-                    args.push(trimmed);
-                    break;
+    // Split the content into lines and process them
+    for line in content.lines() {
+        let trimmed_line = line.trim();
+
+        // Check if the line contains "witness"
+        if trimmed_line.contains("witness") {
+            witness_count += 1;
+
+            // Process only the second occurrence of "witness"
+            if witness_count == 2 {
+                // Split the line into words (arguments)
+                let parts: Vec<&str> = trimmed_line.split(',').map(|s| s.trim()).collect();
+
+                // Extract decimals (second argument after "witness")
+                if parts.len() > 1 {
+                    if let Ok(parsed_decimals) = parts[1].parse::<u8>() {
+                        decimals = parsed_decimals;
+                    }
                 }
 
-                if arg.starts_with("b\"") {
-                    // Capture and trim byte string arguments
-                    let trimmed = char
-                        .trim_end_matches(',')
-                        .trim_start_matches(" b\"")
-                        .to_string();
-                    args.push(trimmed);
-                    char.clear();
+                // Extract symbol (third argument, starts with b"...")
+                if parts.len() > 2 {
+                    if let Some(symbol_start) = parts[2].find("b\"") {
+                        let rest_of_part = &parts[2][symbol_start + 2..];
+                        if let Some(symbol_end) = rest_of_part.find('"') {
+                            symbol = rest_of_part[..symbol_end].to_string();
+                        }
+                    }
                 }
 
-                if char.is_empty() {
-                    char = arg.trim_end_matches("\",").to_string();
-                } else {
-                    char.push(' ');
-                    char.push_str(arg.trim_end_matches("\","));
+                // Extract name (fourth argument, starts with b"...)
+                if parts.len() > 3 {
+                    if let Some(name_start) = parts[3].find("b\"") {
+                        let rest_of_part = &parts[3][name_start + 2..];
+                        if let Some(name_end) = rest_of_part.find('"') {
+                            name = rest_of_part[..name_end].to_string();
+                        }
+                    }
+                }
+
+                // Extract description (fifth argument, starts with b"...)
+                if parts.len() > 4 {
+                    if let Some(desc_start) = parts[4].find("b\"") {
+                        let rest_of_part = &parts[4][desc_start + 2..];
+                        if let Some(desc_end) = rest_of_part.find('"') {
+                            description = rest_of_part[..desc_end].to_string();
+                        }
+                    }
                 }
             }
+        }
 
-            // If enough arguments are found, assign them to token properties
-            if args.len() >= 4 {
-                decimals = args[0].trim().parse().unwrap_or(0); // Parse decimals
-                symbol = args[1]
-                    .trim_start_matches("b\"")
-                    .trim_end_matches("\"")
-                    .to_string();
-                name = args[2]
-                    .trim_start_matches("b\"")
-                    .trim_end_matches("\"")
-                    .to_string();
-                description = args[3]
-                    .trim_start_matches("b\"")
-                    .trim_end_matches("\"")
-                    .to_string();
-            }
-        } else if token.contains("transfer::public_freeze_object") {
-            // Set the frozen state if found
+        // Check if the token is frozen
+        if trimmed_line.contains("transfer::public_freeze_object(metadata);") {
             is_frozen = true;
         }
     }
-
-    // Return a TokenDetails struct with the extracted values
+    // Return the TokenDetails struct
     TokenDetails {
         decimals,
         symbol,
