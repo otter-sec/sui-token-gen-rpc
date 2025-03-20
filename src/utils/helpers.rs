@@ -52,7 +52,7 @@ pub fn filter_whitespace_and_empty_lines(content: &str) -> Result<String, TokenG
         if trimmed.starts_with("//") || trimmed.starts_with("/*") || trimmed.starts_with("#") {
             return Err(TokenGenErrors::ContractModified);
         }
-        result.push(trimmed);
+        result.push(trimmed.to_lowercase());
     }
 
     Ok(result.join("\n"))
