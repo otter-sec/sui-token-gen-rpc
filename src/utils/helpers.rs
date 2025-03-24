@@ -87,56 +87,20 @@ pub fn get_token_info(content: &str) -> TokenDetails {
 
     // Counter to track occurrences of "witness"
     let mut witness_count = 0;
+    let mut i = 0;
 
     // Split the content into lines and process them
     for line in content.lines() {
+        i += 1;
         let trimmed_line = line.trim();
-
-        // Check if the line contains "witness"
-        if trimmed_line.contains("witness") {
+        if trimmed_line.contains("witness") && i > 3 {
             witness_count += 1;
-
-            // Process only the second occurrence of "witness"
             if witness_count == 2 {
-                // Split the line into words (arguments)
-                let parts: Vec<&str> = trimmed_line.split(',').map(|s| s.trim()).collect();
-
-                // Extract decimals (second argument after "witness")
-                if parts.len() > 1 {
-                    if let Ok(parsed_decimals) = parts[1].parse::<u8>() {
-                        decimals = parsed_decimals;
-                    }
-                }
-
-                // Extract symbol (third argument, starts with b"...")
-                if parts.len() > 2 {
-                    if let Some(symbol_start) = parts[2].find("b\"") {
-                        let rest_of_part = &parts[2][symbol_start + 2..];
-                        if let Some(symbol_end) = rest_of_part.find('"') {
-                            symbol = rest_of_part[..symbol_end].to_string();
-                        }
-                    }
-                }
-
-                // Extract name (fourth argument, starts with b"...)
-                if parts.len() > 3 {
-                    if let Some(name_start) = parts[3].find("b\"") {
-                        let rest_of_part = &parts[3][name_start + 2..];
-                        if let Some(name_end) = rest_of_part.find('"') {
-                            name = rest_of_part[..name_end].to_string();
-                        }
-                    }
-                }
-
-                // Extract description (fifth argument, starts with b"...)
-                if parts.len() > 4 {
-                    if let Some(desc_start) = parts[4].find("b\"") {
-                        let rest_of_part = &parts[4][desc_start + 2..];
-                        if let Some(desc_end) = rest_of_part.find('"') {
-                            description = rest_of_part[..desc_end].to_string();
-                        }
-                    }
-                }
+                let token_info = parse_token(trimmed_line);
+                decimals = token_info.decimals;
+                symbol = token_info.symbol;
+                name = token_info.name;
+                description = token_info.description;
             }
         }
 
@@ -153,6 +117,81 @@ pub fn get_token_info(content: &str) -> TokenDetails {
         description,
         is_frozen,
     }
+}
+
+#[derive(Debug)]
+struct Token {
+    decimals: u8,
+    symbol: String,
+    name: String,
+    description: String,
+}
+
+fn parse_token(input: &str) -> Token {
+    // Initialize variables to hold extracted values
+    let mut decimals: u8 = 0;
+    let mut idx = 0;
+    let chars: Vec<char> = input.chars().collect();
+
+    // Skip "witness, "
+    idx += 9;
+
+    // Extract decimals (assume it's a single number)
+    while idx < chars.len() && chars[idx].is_ascii_digit() {
+        decimals = decimals * 10 + (chars[idx] as u8 - b'0');
+        idx += 1;
+    }
+
+    // Skip ", "
+    idx += 2;
+
+    // Extract symbol
+    let (s, next_idx) = extract_b_string(input, idx);
+    let symbol = s; // Assign directly here
+    idx = next_idx;
+
+    // Skip ", "
+    idx += 2;
+
+    // Extract name
+    let (n, next_idx) = extract_b_string(input, idx);
+    let name = n; // Assign directly here
+    idx = next_idx;
+
+    // Skip ", "
+    idx += 2;
+
+    // Extract description
+    let (d, _) = extract_b_string(input, idx);
+    let description = d; // Assign directly here
+
+    // Return the parsed struct
+    Token {
+        decimals,
+        symbol,
+        name,
+        description,
+    }
+}
+
+// Helper function to extract a substring enclosed in b"..." notation
+fn extract_b_string(input: &str, start_idx: usize) -> (String, usize) {
+    let mut result = String::new();
+    let mut idx = start_idx;
+
+    // Skip the 'b"' prefix
+    idx += 2;
+
+    // Extract characters until the closing '"'
+    while idx < input.len() && input.as_bytes()[idx] != b'"' {
+        result.push(input.chars().nth(idx).unwrap());
+        idx += 1;
+    }
+
+    // Skip the closing '"'
+    idx += 1;
+
+    (result, idx)
 }
 
 // Function to sanitize the repository name by removing path traversal sequences
