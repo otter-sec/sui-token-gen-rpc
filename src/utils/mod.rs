@@ -6,6 +6,7 @@
 //! - Helper functions (helpers.rs)
 //! - Configuration constants (variables.rs)
 //! - Verification utilities (verify_helper.rs)
+//! - Sui blockchain-related helper functions (sui_helper.rs)
 
 pub mod errors;
 pub mod generation;

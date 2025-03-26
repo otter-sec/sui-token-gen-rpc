@@ -17,7 +17,7 @@ use crate::utils::{
     server::types::{
         AddressVerifyRequest, ContentVerifyRequest, UrlVerifyRequest, VerifyUrlResponse,
     },
-    variables::{VERIFICATION_MESSAGE, VERIFICATION_MESSAGE_NOTE},
+    variables::{DEFAULT_ENVIRONMENT, VERIFICATION_MESSAGE, VERIFICATION_MESSAGE_NOTE},
 };
 
 use super::AppState;
@@ -105,19 +105,33 @@ pub async fn verify_content_handler(
         )
 }
 
+/// Handler for the address verification endpoint.
+///
+/// Verifies the provided blockchain address to ensure it is valid within the specified environment.
+/// Returns a JSON response indicating whether the verification was successful or failed.
+///
+/// # Arguments
+/// - `State(state)`: The shared application state, which includes the `TokenServer`.
+/// - `AxumJson(payload)`: The JSON payload containing the address and environment details.
+///
+/// # Returns
+/// - `Response`: A JSON response indicating the verification result, including success or error details.
 pub async fn verify_address_handler(
     State(state): State<Arc<AppState>>,
     AxumJson(payload): AxumJson<AddressVerifyRequest>,
 ) -> Response {
+    let environment = payload
+        .environment
+        .unwrap_or(DEFAULT_ENVIRONMENT.to_string());
     state
         .server
         .clone()
-        .verify_address(context::current(), payload.address, payload.environment)
+        .verify_address(context::current(), payload.address, environment)
         .await
         .map_or_else(
             |e| {
                 let response = VerifyUrlResponse {
-                    success: false, // Indicates failure of content verification
+                    success: false, // Indicates failure of address verification
                     message: "Verification failed".to_string(),
                     error: Some(e.to_string()), // Detailed error message
                 };
@@ -125,7 +139,7 @@ pub async fn verify_address_handler(
             },
             |_| {
                 let response = VerifyUrlResponse {
-                    success: true, // Indicates success of content verification
+                    success: true, // Indicates success of address verification
                     message: VERIFICATION_MESSAGE.to_string(),
                     error: None,
                 };

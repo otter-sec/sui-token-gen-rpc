@@ -37,6 +37,7 @@ pub trait TokenGen {
     // Method to check the health of the service
     async fn health_check() -> Result<(), TokenGenErrors>; // Return Ok() if healthy, or an error if not
 
+    // Method to verify the deployed sui token contract with address
     async fn verify_address(address: String, environment: String) -> Result<(), TokenGenErrors>;
 }
 

@@ -62,7 +62,7 @@ pub struct UrlVerifyRequest {
 #[derive(Debug, Deserialize)]
 pub struct AddressVerifyRequest {
     pub address: String,
-    pub environment: String,
+    pub environment: Option<String>,
 }
 
 /// Response structure for verifying a token URL.
@@ -250,6 +250,20 @@ impl TokenGen for TokenServer {
             .map_err(|e| TokenGenErrors::VerifyResultError(e.to_string()))
     }
 
+    /// Verifies the validity of a token address in a specific environment.
+    ///
+    /// This method checks whether the provided token address exists and is valid within
+    /// the specified blockchain environment (e.g., "mainnet", "devnet"). It interacts with
+    /// a helper function that performs the actual verification logic.
+    ///
+    /// # Arguments
+    /// * `address` - The blockchain address of the token to be verified.
+    /// * `environment` - The environment in which the address should be validated
+    ///   (e.g., "mainnet", "devnet", "testnet").
+    ///
+    /// # Returns
+    /// * `Result<(), TokenGenErrors>` - A result indicating whether the address verification
+    ///   was successful or not. If verification fails, an appropriate error is returned.
     async fn verify_address(
         self,
         _: context::Context,

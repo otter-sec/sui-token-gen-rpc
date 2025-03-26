@@ -32,6 +32,7 @@ use tower::{buffer::BufferLayer, limit::RateLimitLayer, ServiceBuilder};
 /// - `/create` [POST] - Creates a new token by providing details such as name, symbol, etc.
 /// - `/verify_url` [POST] - Verifies the validity of a repository URL by attempting to clone and check its content.
 /// - `/verify_content` [POST] - Verifies the provided content (such as a smart contract) for correctness.
+/// - `/verify_address` [POST] - Verifies the validity of a blockchain token address within a specified environment.
 /// - `/health` [GET] - Returns a 200 OK status to indicate the service is healthy.
 ///
 /// Additionally, the rate-limiting middleware is applied globally across all routes to ensure a maximum request rate.
