@@ -115,11 +115,19 @@ pub fn get_token_info(content: &str) -> TokenDetails {
 // Function to sanitize the repository name by removing path traversal sequences
 // This ensures the resulting name is safe for use as a directory name.
 pub fn sanitize_repo_name(repo_name: &str) -> String {
-    // Replace path traversal characters with an empty string
-    repo_name
-        .replace("..", "")
-        .replace("/", "")
-        .replace("\\", "")
+    let mut sanitized = repo_name.replace("..", ""); // Remove any ".."
+    sanitized = sanitized.replace("/", ""); // Remove "/"
+    sanitized = sanitized.replace("\\", ""); // Remove "\"
+
+    // Ensure no remaining "." attempts
+    sanitized = sanitized.replace(".", "");
+
+    // Ensure it's not empty after sanitization
+    if sanitized.is_empty() {
+        return "default_repo".to_string();
+    }
+
+    sanitized
 }
 
 // Function to check if the cloned contract exists at the specified path, and remove it if it does
