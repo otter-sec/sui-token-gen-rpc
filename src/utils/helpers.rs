@@ -49,7 +49,7 @@ pub fn filter_whitespace_and_empty_lines(content: &str) -> Result<String, TokenG
         if trimmed.is_empty() {
             continue;
         }
-        if trimmed.starts_with("//") || trimmed.starts_with("/*") || trimmed.starts_with("#") {
+        if trimmed.starts_with("/*") || trimmed.starts_with("#") {
             return Err(TokenGenErrors::ContractModified);
         }
         result.push(trimmed.to_lowercase());
@@ -78,38 +78,31 @@ pub fn get_environment_from_toml(content: &str) -> Option<String> {
 
 // Function to extract token details (decimals, symbol, name, description, is_frozen) from a contract content
 pub fn get_token_info(content: &str) -> TokenDetails {
-    // Initialize default values for token properties
-    let mut decimals = 0;
-    let mut symbol = String::new();
     let mut name = String::new();
+    let mut symbol = String::new();
     let mut description = String::new();
+    let mut decimals = 0;
     let mut is_frozen = false;
 
-    // Counter to track occurrences of "witness"
-    let mut witness_count = 0;
-    let mut i = 0;
-
-    // Split the content into lines and process them
     for line in content.lines() {
-        i += 1;
-        let trimmed_line = line.trim();
-        if trimmed_line.contains("witness") && i > 3 {
-            witness_count += 1;
-            if witness_count == 2 {
-                let token_info = parse_token(trimmed_line);
-                decimals = token_info.decimals;
-                symbol = token_info.symbol;
-                name = token_info.name;
-                description = token_info.description;
+        let line = line.trim();
+        if line.starts_with("///") {
+            let parts: Vec<&str> = line.splitn(2, ':').collect();
+            if parts.len() == 2 {
+                let key = parts[0].trim_start_matches("///").trim().to_lowercase();
+                let value = parts[1].trim();
+                match key.as_str() {
+                    "name" => name = value.to_string(),
+                    "symbol" => symbol = value.to_string(),
+                    "description" => description = value.to_string(),
+                    "decimals" => decimals = value.parse().unwrap_or(0),
+                    "is_frozen" => is_frozen = value.parse().unwrap_or(false),
+                    _ => {}
+                }
             }
         }
-
-        // Check if the token is frozen
-        if trimmed_line.contains("transfer::public_freeze_object(metadata);") {
-            is_frozen = true;
-        }
     }
-    // Return the TokenDetails struct
+
     TokenDetails {
         decimals,
         symbol,
@@ -117,81 +110,6 @@ pub fn get_token_info(content: &str) -> TokenDetails {
         description,
         is_frozen,
     }
-}
-
-#[derive(Debug)]
-struct Token {
-    decimals: u8,
-    symbol: String,
-    name: String,
-    description: String,
-}
-
-fn parse_token(input: &str) -> Token {
-    // Initialize variables to hold extracted values
-    let mut decimals: u8 = 0;
-    let mut idx = 0;
-    let chars: Vec<char> = input.chars().collect();
-
-    // Skip "witness, "
-    idx += 9;
-
-    // Extract decimals (assume it's a single number)
-    while idx < chars.len() && chars[idx].is_ascii_digit() {
-        decimals = decimals * 10 + (chars[idx] as u8 - b'0');
-        idx += 1;
-    }
-
-    // Skip ", "
-    idx += 2;
-
-    // Extract symbol
-    let (s, next_idx) = extract_b_string(input, idx);
-    let symbol = s; // Assign directly here
-    idx = next_idx;
-
-    // Skip ", "
-    idx += 2;
-
-    // Extract name
-    let (n, next_idx) = extract_b_string(input, idx);
-    let name = n; // Assign directly here
-    idx = next_idx;
-
-    // Skip ", "
-    idx += 2;
-
-    // Extract description
-    let (d, _) = extract_b_string(input, idx);
-    let description = d; // Assign directly here
-
-    // Return the parsed struct
-    Token {
-        decimals,
-        symbol,
-        name,
-        description,
-    }
-}
-
-// Helper function to extract a substring enclosed in b"..." notation
-fn extract_b_string(input: &str, start_idx: usize) -> (String, usize) {
-    let mut result = String::new();
-    let mut idx = start_idx;
-
-    // Skip the 'b"' prefix
-    idx += 2;
-
-    // Extract characters until the closing '"'
-    while idx < input.len() && input.as_bytes()[idx] != b'"' {
-        result.push(input.chars().nth(idx).unwrap());
-        idx += 1;
-    }
-
-    // Skip the closing '"'
-    idx += 1;
-
-    (result, idx)
 }
 
 // Function to sanitize the repository name by removing path traversal sequences

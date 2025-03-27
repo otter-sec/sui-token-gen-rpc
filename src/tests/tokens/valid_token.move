@@ -2,6 +2,12 @@ module Mytoken::mytoken {
     use sui::coin::{Self, TreasuryCap};
     public struct MYTOKEN has drop {}
 
+    /// name: My token
+    /// decimals: 8
+    /// symbol: MT
+    /// description: Tetsing
+    /// is_frozen: true
+
     fun init(witness: MYTOKEN, ctx: &mut TxContext) {
         let (treasury, metadata) = coin::create_currency(
             witness, 8, b"MT", b"My token", b"Tetsing", option::none(), ctx
