@@ -24,6 +24,7 @@ pub const TEST_FOLDER: &str = "tests";
 
 // Struct representing the details of a token, typically used in smart contract contexts
 // This struct holds various properties that define the characteristics of a token
+#[derive(Debug)]
 pub struct TokenDetails {
     // The number of decimal places the token can represent
     // This is important for defining the precision of token amounts

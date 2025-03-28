@@ -168,3 +168,131 @@ pub fn extract_module_and_coin(input: &str) -> Option<(String, String, bool)> {
 
     Some((module_caps[2].to_string(), coin_type, is_frozen))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_valid_token_info() {
+        let content = "
+        /// name: MyToken
+        /// symbol: MTK
+        /// description: This is a test token
+        /// decimals: 8
+        /// is_frozen: false
+        ";
+
+        let token_info = get_token_info(content);
+        assert_eq!(token_info.name, "MyToken");
+        assert_eq!(token_info.symbol, "MTK");
+        assert_eq!(token_info.description, "This is a test token");
+        assert_eq!(token_info.decimals, 8);
+        assert_eq!(token_info.is_frozen, false);
+    }
+
+    #[test]
+    fn test_missing_fields() {
+        let content = "
+        /// name: 
+        /// symbol: MTK
+        ";
+
+        let token_info = get_token_info(content);
+        assert_eq!(token_info.name, "");
+        assert_eq!(token_info.symbol, "MTK");
+        assert_eq!(token_info.description, "");
+        assert_eq!(token_info.decimals, 0);
+        assert_eq!(token_info.is_frozen, false);
+    }
+
+    #[test]
+    fn test_special_characters() {
+        let content = "
+        /// name: Tök€n🔹
+        /// symbol: $MTK!
+        /// description: Super @Token# with *&^%$
+        /// decimals: 6
+        ";
+
+        let token_info = get_token_info(content);
+        assert_eq!(token_info.name, "Tök€n🔹");
+        assert_eq!(token_info.symbol, "$MTK!");
+        assert_eq!(token_info.description, "\"Super @Token# with *&^%$\"");
+        assert_eq!(token_info.decimals, 6);
+    }
+
+    #[test]
+    fn test_invalid_decimal_value() {
+        let content = "
+        /// name: Example
+        /// decimals: abc
+        ";
+
+        let token_info = get_token_info(content);
+        assert_eq!(token_info.decimals, 0); // Should default to 0 when parsing fails
+    }
+
+    #[test]
+    fn test_is_frozen_boolean_edge_cases() {
+        let content_true = "
+        /// is_frozen: true
+        ";
+        let token_info_true = get_token_info(content_true);
+        assert_eq!(token_info_true.is_frozen, true);
+
+        let content_false = "
+        /// is_frozen: false
+        ";
+        let token_info_false = get_token_info(content_false);
+        assert_eq!(token_info_false.is_frozen, false);
+    }
+
+    #[test]
+    fn test_irregular_spacing_and_colons() {
+        let content = "
+        /// name   :    SpacedToken  
+        /// symbol    :SYMBOL123
+        ";
+
+        let token_info = get_token_info(content);
+        assert_eq!(token_info.name, "SpacedToken");
+        assert_eq!(token_info.symbol, "SYMBOL123");
+    }
+
+    #[test]
+    fn test_extra_non_metadata_lines() {
+        let content = "
+        Some random text here
+        /// name: LegitToken
+        Another random line
+        /// symbol: LTK
+        /// decimals: 5
+        ";
+
+        let token_info = get_token_info(content);
+
+        assert_eq!(token_info.name, "LegitToken");
+        assert_eq!(token_info.symbol, "LTK");
+        assert_eq!(token_info.decimals, 5);
+    }
+
+    #[test]
+    fn test_description_with_colon() {
+        let content = "
+        /// description: :
+        Some random text here
+        /// name: LegitToken
+        Another random line
+        /// symbol: LTK
+        /// decimals: 5
+        ";
+
+        let token_info = get_token_info(content);
+
+        assert_eq!(token_info.name, "LegitToken");
+        assert_eq!(token_info.description, ":");
+        assert_eq!(token_info.symbol, "LTK");
+        assert_eq!(token_info.decimals, 5);
+    }
+}
