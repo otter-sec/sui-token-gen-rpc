@@ -188,7 +188,7 @@ mod tests {
         assert_eq!(token_info.symbol, "MTK");
         assert_eq!(token_info.description, "This is a test token");
         assert_eq!(token_info.decimals, 8);
-        assert_eq!(token_info.is_frozen, false);
+        assert!(!token_info.is_frozen);
     }
 
     #[test]
@@ -203,7 +203,7 @@ mod tests {
         assert_eq!(token_info.symbol, "MTK");
         assert_eq!(token_info.description, "");
         assert_eq!(token_info.decimals, 0);
-        assert_eq!(token_info.is_frozen, false);
+        assert!(!token_info.is_frozen);
     }
 
     #[test]
@@ -239,13 +239,13 @@ mod tests {
         /// is_frozen: true
         ";
         let token_info_true = get_token_info(content_true);
-        assert_eq!(token_info_true.is_frozen, true);
+        assert!(token_info_true.is_frozen);
 
         let content_false = "
         /// is_frozen: false
         ";
         let token_info_false = get_token_info(content_false);
-        assert_eq!(token_info_false.is_frozen, false);
+        assert!(!token_info_false.is_frozen);
     }
 
     #[test]
