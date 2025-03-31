@@ -211,14 +211,14 @@ mod tests {
         let content = "
         /// name: Tök€n🔹
         /// symbol: $MTK!
-        /// description: Super @Token# with *&^%$
+        /// description: Super @Token# : with *&^%$
         /// decimals: 6
         ";
 
         let token_info = get_token_info(content);
         assert_eq!(token_info.name, "Tök€n🔹");
         assert_eq!(token_info.symbol, "$MTK!");
-        assert_eq!(token_info.description, "\"Super @Token# with *&^%$\"");
+        assert_eq!(token_info.description, "Super @Token# : with *&^%$");
         assert_eq!(token_info.decimals, 6);
     }
 
