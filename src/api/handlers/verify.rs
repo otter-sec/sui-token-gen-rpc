@@ -14,8 +14,10 @@ use std::sync::Arc;
 use tarpc::context;
 
 use crate::utils::{
-    server::types::{ContentVerifyRequest, UrlVerifyRequest, VerifyUrlResponse},
-    variables::VERIFICATION_MESSAGE,
+    server::types::{
+        AddressVerifyRequest, ContentVerifyRequest, UrlVerifyRequest, VerifyUrlResponse,
+    },
+    variables::{DEFAULT_ENVIRONMENT, VERIFICATION_MESSAGE, VERIFICATION_MESSAGE_NOTE},
 };
 
 use super::AppState;
@@ -38,7 +40,7 @@ pub async fn verify_url_handler(
     state
         .server
         .clone()
-        .verify_url(context::current(), payload.url)
+        .verify_url(context::current(), payload.url.clone())
         .await
         .map_or_else(
             |e| {
@@ -49,10 +51,13 @@ pub async fn verify_url_handler(
                 };
                 (axum::http::StatusCode::BAD_REQUEST, AxumJson(response)).into_response()
             },
-            |_| {
+            |file_name| {
                 let response = VerifyUrlResponse {
                     success: true, // Indicates success of URL verification
-                    message: VERIFICATION_MESSAGE.to_string(),
+                    message: format!(
+                        "Verified: {} coin on {} was generated using the SUI Token Gen CLI. {}",
+                        payload.url, file_name, VERIFICATION_MESSAGE_NOTE
+                    ),
                     error: None,
                 };
                 (axum::http::StatusCode::OK, AxumJson(response)).into_response()
@@ -78,7 +83,7 @@ pub async fn verify_content_handler(
     state
         .server
         .clone()
-        .verify_content(context::current(), payload.content)
+        .verify_content(context::current(), payload.content, payload.toml)
         .await
         .map_or_else(
             |e| {
@@ -92,6 +97,49 @@ pub async fn verify_content_handler(
             |_| {
                 let response = VerifyUrlResponse {
                     success: true, // Indicates success of content verification
+                    message: format!("{} {}", VERIFICATION_MESSAGE, VERIFICATION_MESSAGE_NOTE),
+                    error: None,
+                };
+                (axum::http::StatusCode::OK, AxumJson(response)).into_response()
+            },
+        )
+}
+
+/// Handler for the address verification endpoint.
+///
+/// Verifies the provided blockchain address to ensure it is valid within the specified environment.
+/// Returns a JSON response indicating whether the verification was successful or failed.
+///
+/// # Arguments
+/// - `State(state)`: The shared application state, which includes the `TokenServer`.
+/// - `AxumJson(payload)`: The JSON payload containing the address and environment details.
+///
+/// # Returns
+/// - `Response`: A JSON response indicating the verification result, including success or error details.
+pub async fn verify_address_handler(
+    State(state): State<Arc<AppState>>,
+    AxumJson(payload): AxumJson<AddressVerifyRequest>,
+) -> Response {
+    let environment = payload
+        .environment
+        .unwrap_or(DEFAULT_ENVIRONMENT.to_string());
+    state
+        .server
+        .clone()
+        .verify_address(context::current(), payload.address, environment)
+        .await
+        .map_or_else(
+            |e| {
+                let response = VerifyUrlResponse {
+                    success: false, // Indicates failure of address verification
+                    message: "Verification failed".to_string(),
+                    error: Some(e.to_string()), // Detailed error message
+                };
+                (axum::http::StatusCode::BAD_REQUEST, AxumJson(response)).into_response()
+            },
+            |_| {
+                let response = VerifyUrlResponse {
+                    success: true, // Indicates success of address verification
                     message: VERIFICATION_MESSAGE.to_string(),
                     error: None,
                 };

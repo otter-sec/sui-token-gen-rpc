@@ -6,7 +6,7 @@
 // - Available network connection for Git operations
 // - Sufficient permissions for file operations
 //
-use crate::utils::server::types::TokenServer;
+use crate::utils::{server::types::TokenServer, variables::DEFAULT_ENVIRONMENT};
 use futures::prelude::*;
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use service::{TokenGen, TokenGenErrors};
@@ -35,7 +35,7 @@ async fn test_create_token_validation() {
             "TST".into(),
             "Description".into(),
             false,
-            "devnet".into(),
+            DEFAULT_ENVIRONMENT.into(),
         )
         .await;
     assert!(matches!(result, Err(TokenGenErrors::InvalidDecimals)));
@@ -50,7 +50,7 @@ async fn test_create_token_validation() {
             "TSTSTST".into(),
             "Description".into(),
             false,
-            "devnet".into(),
+            DEFAULT_ENVIRONMENT.into(),
         )
         .await;
     assert!(matches!(result, Err(TokenGenErrors::InvalidSymbol)));
@@ -65,7 +65,7 @@ async fn test_create_token_validation() {
             "T$T".into(),
             "Description".into(),
             false,
-            "devnet".into(),
+            DEFAULT_ENVIRONMENT.into(),
         )
         .await;
     assert!(matches!(result, Err(TokenGenErrors::InvalidSymbol)));
@@ -80,7 +80,7 @@ async fn test_create_token_validation() {
             "TST".into(),
             "Description".into(),
             false,
-            "devnet".into(),
+            DEFAULT_ENVIRONMENT.into(),
         )
         .await;
     assert!(matches!(result, Err(TokenGenErrors::InvalidName)));
@@ -95,7 +95,7 @@ async fn test_create_token_validation() {
             "TST".into(),
             "Test /Description/".into(),
             false,
-            "devnet".into(),
+            DEFAULT_ENVIRONMENT.into(),
         )
         .await;
     assert!(matches!(result, Err(TokenGenErrors::InvalidDescription)));
@@ -110,7 +110,7 @@ async fn test_create_token_validation() {
             "TST".into(),
             "Test Description".into(),
             false,
-            "devnet".into(),
+            DEFAULT_ENVIRONMENT.into(),
         )
         .await;
     assert!(result.is_ok());
@@ -125,7 +125,7 @@ async fn test_create_token_validation() {
             "TST".into(),
             "Description".into(),
             false,
-            "devnet".into(),
+            DEFAULT_ENVIRONMENT.into(),
         )
         .await;
     assert!(result.is_ok());
@@ -162,19 +162,26 @@ async fn test_verify_content_validation() {
     let ctx = context::current();
 
     // Test empty content
-    let result = server.clone().verify_content(ctx, "".into()).await;
+    let result = server
+        .clone()
+        .verify_content(ctx, "".into(), "".into())
+        .await;
     assert!(result.is_err());
 
     // Test invalid content
     let result = server
         .clone()
-        .verify_content(ctx, "invalid content".into())
+        .verify_content(ctx, "invalid content".into(), "invalid toml".into())
         .await;
     assert!(result.is_err());
 
     // Test malformed Move code
     let result = server
-        .verify_content(ctx, "module test { public fun main() { } }".into())
+        .verify_content(
+            ctx,
+            "module test { public fun main() { } }".into(),
+            "[package]".into(),
+        )
         .await;
     assert!(result.is_err());
 }

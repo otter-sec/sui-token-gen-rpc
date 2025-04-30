@@ -87,6 +87,19 @@ pub fn index() -> Json<Value> {
                     }
                 },
                 {
+                    "path": "/verify_address",  // Endpoint path for verifying address
+                    "method": "POST",           // HTTP method for the /verify_address endpoint
+                    "payload": {                // Expected input parameters for the /verify_address endpoint
+                        "address": "0x1234abcd5678ef90 (string)",
+                        "environment": "devnet (string)"
+                    },
+                    "response": {               // Structure of the response returned from the /verify_address endpoint
+                        "success": "Indicates if content verification was successful (boolean)",
+                        "message": "Message describing the outcome (string)",
+                        "error": "Error message if verification failed (string, optional)"
+                    }
+                },
+                {
                     "path": "/",                // Endpoint path for the root check
                     "method": "GET",            // HTTP method for the root endpoint
                     "response": {               // Structure of the response returned from the root endpoint

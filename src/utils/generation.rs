@@ -6,8 +6,12 @@ use crate::utils::{
     helpers::sanitize_name,
     variables::{SUI_PROJECT, SUI_PROJECT_SUB_DIR},
 };
+use std::fs;
 
-use super::variables::EDITION;
+use super::{
+    errors::TokenGenErrors,
+    variables::{EDITION, SUB_FOLDER, TEST_FOLDER},
+};
 
 // Struct representing the package details in the Move.toml file
 #[derive(Serialize)]
@@ -112,4 +116,57 @@ pub fn generate_move_toml(package_name: String, environment: String) -> String {
     let toml_content: String = toml::to_string(&move_toml).unwrap();
 
     toml_content // Return the generated TOML content
+}
+
+/// Handles file and directory operations for token contract generation
+pub struct ContractGenerator {
+    base_folder: String,
+}
+
+impl ContractGenerator {
+    /// Creates a new `ContractGenerator` instance with the specified base folder.
+    pub fn new(base_folder: String) -> Self {
+        Self { base_folder }
+    }
+    pub fn create_contract_file(
+        &self,
+        name: &str,
+        token_template: &str,
+        sub_folder: &str,
+    ) -> Result<(), TokenGenErrors> {
+        // Sanitize the name to create a safe file name (alphanumeric only).
+        let slug: String = sanitize_name(name);
+
+        // Construct the path for the contract file.
+        let sources_folder: String = format!("{}/{}", self.base_folder, sub_folder);
+        let file_name: String = format!("{}/{}.move", sources_folder, slug.to_lowercase());
+
+        // Write the token template content to the file.
+        fs::write(&file_name, token_template)
+            .map_err(|e| TokenGenErrors::FileError(e.to_string()))?;
+        Ok(())
+    }
+    pub fn create_base_folder(&self) -> Result<(), TokenGenErrors> {
+        // Create the main `sources` and `tests` subdirectories.
+        self.create_dir(SUB_FOLDER)?;
+        self.create_dir(TEST_FOLDER)?;
+        Ok(())
+    }
+    pub fn create_move_toml(&self, toml_content: &str) -> Result<(), TokenGenErrors> {
+        // Construct the file path for `Move.toml`.
+        let file_path: String = format!("{}/Move.toml", self.base_folder);
+
+        // Write the provided TOML content to the file.
+        fs::write(&file_path, toml_content)
+            .map_err(|e| TokenGenErrors::FileError(e.to_string()))?;
+        Ok(())
+    }
+    pub fn create_dir(&self, sub_folder: &str) -> Result<(), TokenGenErrors> {
+        // Construct the directory path.
+        let dir: String = format!("{}/{}", self.base_folder, sub_folder);
+
+        // Create the directory and all necessary parent directories.
+        fs::create_dir_all(&dir).map_err(|e| TokenGenErrors::FileError(e.to_string()))?;
+        Ok(())
+    }
 }

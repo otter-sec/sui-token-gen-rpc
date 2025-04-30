@@ -10,7 +10,9 @@ use service::{TokenGen, TokenGenErrors};
 use std::net::SocketAddr;
 use tarpc::context;
 
-use crate::utils::{generation, helpers::sanitize_name, verify_helper}; // Utility functions
+use crate::utils::{
+    generation, helpers::sanitize_name, variables::DEFAULT_ENVIRONMENT, verify_helper,
+}; // Utility functions
 
 /// Request structure for creating a token.
 ///
@@ -45,6 +47,7 @@ pub struct CreateResponse {
 #[derive(Debug, Deserialize)]
 pub struct ContentVerifyRequest {
     pub content: String, // The content of the token to be verified
+    pub toml: String,    // The toml content of the token to be verified
 }
 
 /// Request structure for verifying token URL.
@@ -54,6 +57,12 @@ pub struct ContentVerifyRequest {
 #[derive(Debug, Deserialize)]
 pub struct UrlVerifyRequest {
     pub url: String, // The URL to be verified
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AddressVerifyRequest {
+    pub address: String,
+    pub environment: Option<String>,
 }
 
 /// Response structure for verifying a token URL.
@@ -121,12 +130,12 @@ impl TokenGen for TokenServer {
     ///
     /// # Returns
     /// * `Result<(String, String, String), TokenGenErrors>` - A result containing the generated token content,
-    ///    Move.toml configuration file, and test token content, or an error if validation fails.
+    ///   Move.toml configuration file, and test token content, or an error if validation fails.
     async fn create(
         self,
         _: context::Context,
         decimals: u8,
-        name: String,
+        raw_name: String,
         symbol: String,
         description: String,
         is_frozen: bool,
@@ -134,6 +143,8 @@ impl TokenGen for TokenServer {
     ) -> anyhow::Result<(String, String, String), TokenGenErrors> {
         // Log the server address when handling a request.
         self.log_address().await;
+
+        let name = raw_name.to_lowercase();
 
         // Validate decimals: must be between 1 and 99.
         if decimals == 0 || decimals >= 100 {
@@ -167,7 +178,7 @@ impl TokenGen for TokenServer {
         let environment = if valid_environments.contains(&environment.as_str()) {
             environment
         } else {
-            "devnet".to_string() // Default to "devnet" if invalid.
+            DEFAULT_ENVIRONMENT.to_string() // Default env if invalid.
         };
 
         // Sanitize the name to create a valid folder name for storing the token.
@@ -212,7 +223,7 @@ impl TokenGen for TokenServer {
         self,
         _: context::Context,
         url: String,
-    ) -> anyhow::Result<(), TokenGenErrors> {
+    ) -> anyhow::Result<String, TokenGenErrors> {
         verify_helper::verify_token_using_url(&url)
             .await
             .map_err(|e| TokenGenErrors::VerifyResultError(e.to_string()))
@@ -233,8 +244,34 @@ impl TokenGen for TokenServer {
         self,
         _: context::Context,
         content: String,
+        toml: String,
     ) -> anyhow::Result<(), TokenGenErrors> {
-        verify_helper::compare_contract_content(content)
+        verify_helper::compare_contract_content(content, toml)
+            .map_err(|e| TokenGenErrors::VerifyResultError(e.to_string()))
+    }
+
+    /// Verifies the validity of a token address in a specific environment.
+    ///
+    /// This method checks whether the provided token address exists and is valid within
+    /// the specified blockchain environment (e.g., "mainnet", "devnet"). It interacts with
+    /// a helper function that performs the actual verification logic.
+    ///
+    /// # Arguments
+    /// * `address` - The blockchain address of the token to be verified.
+    /// * `environment` - The environment in which the address should be validated
+    ///   (e.g., "mainnet", "devnet", "testnet").
+    ///
+    /// # Returns
+    /// * `Result<(), TokenGenErrors>` - A result indicating whether the address verification
+    ///   was successful or not. If verification fails, an appropriate error is returned.
+    async fn verify_address(
+        self,
+        _: context::Context,
+        address: String,
+        environment: String,
+    ) -> anyhow::Result<(), TokenGenErrors> {
+        verify_helper::verify_address(address, environment)
+            .await
             .map_err(|e| TokenGenErrors::VerifyResultError(e.to_string()))
     }
 
